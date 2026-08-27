@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+    <title>Editor de Fluxos</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+
+        .header { background: #1a1a2e; border-bottom: 1px solid #333; padding: 16px 24px; display: flex; align-items: center; gap: 16px; -webkit-app-region: drag; }
+        .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+        .header-actions { margin-left: auto; display: flex; gap: 8px; -webkit-app-region: no-drag; }
+
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+        .btn-primary { background: #6c5ce7; color: #fff; }
+        .btn-primary:hover { background: #5a4bd1; }
+        .btn-success { background: #00b894; color: #fff; }
+        .btn-success:hover { background: #00a381; }
+        .btn-danger { background: #e74c3c; color: #fff; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-outline { background: transparent; border: 1px solid #444; color: #ccc; }
+        .btn-outline:hover { background: #222; border-color: #666; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+        .fluxos-grid { display: flex; flex-direction: column; gap: 16px; }
+
+        .fluxo-card { background: #1a1a2e; border: 1px solid #333; border-radius: 10px; overflow: hidden; }
+        .fluxo-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #16162a; border-bottom: 1px solid #333; }
+        .fluxo-header input { background: transparent; border: none; color: #a29bfe; font-size: 16px; font-weight: 600; font-family: 'Consolas', monospace; flex: 1; }
+        .fluxo-header input:focus { outline: none; }
+        .fluxo-header .fluxo-label { color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .fluxo-body { padding: 12px; }
+
+        .actions-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 48px; padding: 8px; background: #0f0f0f; border-radius: 8px; border: 2px dashed #333; align-items: flex-start; align-content: flex-start; }
+        .actions-list:empty::before { content: 'Clique em Gravar para adicionar acoes', color: #555; font-size: 13px; }
+
+        .action-item { display: flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 13px; cursor: grab; position: relative; user-select: none; }
+        .action-item:active { cursor: grabbing; }
+        .action-item .remove-btn { opacity: 0; cursor: pointer; color: #e74c3c; font-weight: bold; margin-left: 4px; transition: opacity 0.1s; }
+        .action-item:hover .remove-btn { opacity: 1; }
+
+        .action-var { background: #2d1f5e; border: 1px solid #6c5ce7; color: #a29bfe; }
+        .action-key { background: #1f3d2d; border: 1px solid #00b894; color: #55efc4; }
+        .action-text { background: #3d2d1f; border: 1px solid #e17055; color: #fab1a0; }
+        .action-delay { background: #1f2d3d; border: 1px solid #74b9ff; color: #74b9ff; }
+        .action-mouse { background: #3d1f2d; border: 1px solid #fd79a8; color: #fd79a8; }
+
+        .drag-over { border-color: #6c5ce7 !important; background: #1a1a3e !important; }
+
+        .recording-panel { display: none; background: #1a1a2e; border: 1px solid #333; border-radius: 10px; margin-bottom: 24px; overflow: hidden; }
+        .recording-panel.active { display: block; }
+        .recording-panel-header { padding: 12px 16px; background: #16162a; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 12px; }
+        .recording-panel-header h3 { font-size: 14px; color: #fff; }
+        .recording-panel-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+        .recording-tabs { display: flex; gap: 4px; }
+        .recording-tab { padding: 8px 16px; border: 1px solid #333; border-radius: 6px; background: transparent; color: #aaa; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+        .recording-tab:hover { background: #222; }
+        .recording-tab.active { background: #6c5ce7; border-color: #6c5ce7; color: #fff; }
+
+        .recording-section { display: none; }
+        .recording-section.active { display: block; }
+
+        .recording-recorded { display: flex; flex-wrap: wrap; gap: 4px; min-height: 36px; padding: 8px; background: #0f0f0f; border-radius: 6px; border: 1px dashed #444; align-items: flex-start; }
+        .recording-recorded:empty::before { content: 'Nenhum item na fila', color: #555; font-size: 12px; }
+
+        .record-btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; background: #e74c3c; color: #fff; }
+        .record-btn:hover { background: #c0392b; }
+        .record-btn.recording { animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes fadeOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(2); } }
+
+        .recording-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+        .key-row { display: flex; gap: 4px; margin-bottom: 4px; justify-content: center; }
+        .key { min-width: 40px; height: 36px; background: #2d2d4a; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; user-select: none; }
+        .key:hover { background: #3d3d5a; border-color: #6c5ce7; }
+        .key:active { background: #6c5ce7; transform: scale(0.95); }
+        .key.wide { min-width: 60px; }
+        .key.wider { min-width: 80px; }
+        .key.special { background: #1f3d2d; border-color: #00b894; }
+        .key.spacebar { min-width: 250px; background: #2d1f5e; border-color: #6c5ce7; }
+
+        .mouse-coords { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .mouse-coords label { font-size: 12px; color: #aaa; }
+        .mouse-coords input { width: 80px; background: #0f0f0f; border: 1px solid #444; border-radius: 4px; color: #fff; padding: 4px 8px; font-size: 12px; text-align: center; }
+
+        .vars-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .var-tag { padding: 6px 12px; background: #2d1f5e; border: 1px solid #6c5ce7; border-radius: 6px; color: #a29bfe; font-family: 'Consolas', monospace; font-size: 12px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+        .var-tag:hover { background: #3d2f6e; border-color: #a29bfe; }
+        .var-tag .var-remove { cursor: pointer; color: #e74c3c; font-weight: bold; }
+        .var-tag .var-remove:hover { color: #ff6b6b; }
+        .var-add { display: flex; gap: 6px; }
+        .var-add input { flex: 1; background: #0f0f0f; border: 1px solid #444; border-radius: 4px; color: #fff; padding: 6px 10px; font-size: 13px; }
+        .var-add input:focus { outline: none; border-color: #6c5ce7; }
+
+        .delay-options { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .delay-options input { width: 80px; background: #0f0f0f; border: 1px solid #444; border-radius: 4px; color: #fff; padding: 6px 10px; font-size: 13px; text-align: center; }
+        .delay-options input:focus { outline: none; border-color: #6c5ce7; }
+        .delay-preset { padding: 6px 12px; background: #1f2d3d; border: 1px solid #74b9ff; border-radius: 4px; color: #74b9ff; cursor: pointer; font-size: 12px; }
+        .delay-preset:hover { background: #2f3d4d; }
+
+        .file-info { font-size: 12px; color: #888; margin-left: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Editor de Fluxos</h1>
+        <span class="file-info" id="fileInfo"></span>
+        <div class="header-actions">
+            <button class="btn btn-outline btn-sm" onclick="openFile()">📂 Abrir</button>
+            <button class="btn btn-success btn-sm" onclick="saveFile()">💾 Salvar</button>
+            <button class="btn btn-outline btn-sm" onclick="saveFileAs()">💾 Salvar Como</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="recording-panel" id="recordingPanel">
+            <div class="recording-panel-header">
+                <h3>Modo Gravacao</h3>
+                <span style="font-size: 12px; color: #888;" id="recordingTarget">Fluxo: ---</span>
+                <button class="btn btn-outline btn-sm" onclick="closeRecordingPanel()" style="margin-left: auto;">✕ Fechar</button>
+            </div>
+            <div class="recording-panel-body">
+                <div class="recording-tabs">
+                    <button class="recording-tab active" onclick="switchTab(this, 'keys')">⌨ Teclado</button>
+                    <button class="recording-tab" onclick="switchTab(this, 'mouse')">🖱 Mouse</button>
+                    <button class="recording-tab" onclick="switchTab(this, 'vars')">📦 Variaveis</button>
+                    <button class="recording-tab" onclick="switchTab(this, 'delay')">⏱ Delay</button>
+                    <button class="recording-tab" onclick="switchTab(this, 'text')">✏ Texto</button>
+                </div>
+
+                <div class="recording-section active" id="section-keys">
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                        <button class="record-btn" id="keyRecordBtn" onclick="toggleKeyRecording()">🎤 Gravar Teclas</button>
+                        <span style="font-size: 11px; color: #888;">Pressione teclas no teclado fisico ou clique nas abaixo</span>
+                    </div>
+                    <div id="keyboardLayout"></div>
+                </div>
+
+                <div class="recording-section" id="section-mouse">
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                        <button class="record-btn" id="mouseRecordBtn" onclick="toggleMouseRecording()">🎯 Gravar na Tela</button>
+                        <span style="font-size: 11px; color: #888;">Clique na tela para capturar coordenadas</span>
+                    </div>
+                    <div style="font-size: 11px; color: #666; margin-bottom: 8px; padding: 6px; background: #0f0f0f; border-radius: 4px;">
+                        ⚠️ So captura cliques dentro do app. Para coordenadas externas, use os campos abaixo.
+                    </div>
+                    <div class="mouse-coords">
+                        <label>X: <input type="number" id="mouseX" value="0" min="0"></label>
+                        <label>Y: <input type="number" id="mouseY" value="0" min="0"></label>
+                        <button class="btn btn-outline btn-sm" onclick="addMouseAction('click')">+ Click</button>
+                        <button class="btn btn-outline btn-sm" onclick="addMouseAction('rightclick')">+ Click Direito</button>
+                        <button class="btn btn-outline btn-sm" onclick="addMouseAction('doubleclick')">+ Duplo Click</button>
+                    </div>
+                </div>
+
+                <div class="recording-section" id="section-vars">
+                    <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Clique em uma variavel para adicionar ao fluxo.</div>
+                    <div class="var-add">
+                        <input type="text" id="newVarName" placeholder="Nome da variavel (ex: VAR_ITEM)" />
+                        <button class="btn btn-primary btn-sm" onclick="addVariable()">+ Adicionar</button>
+                    </div>
+                    <div class="vars-list" id="varsList" style="margin-top: 8px;"></div>
+                </div>
+
+                <div class="recording-section" id="section-delay">
+                    <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Adicione uma pausa entre acoes.</div>
+                    <div class="delay-options">
+                        <input type="number" id="delayValue" value="500" min="0" step="100" />
+                        <span style="color: #888;">ms</span>
+                        <button class="btn btn-outline btn-sm" onclick="addDelayAction()">+ Adicionar</button>
+                        <span style="margin-left: 8px; color: #555;">|</span>
+                        <button class="delay-preset" onclick="addDelayPreset(100)">100ms</button>
+                        <button class="delay-preset" onclick="addDelayPreset(250)">250ms</button>
+                        <button class="delay-preset" onclick="addDelayPreset(500)">500ms</button>
+                        <button class="delay-preset" onclick="addDelayPreset(1000)">1s</button>
+                        <button class="delay-preset" onclick="addDelayPreset(2000)">2s</button>
+                    </div>
+                </div>
+
+                <div class="recording-section" id="section-text">
+                    <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Digite um texto para ser inserido.</div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="textValue" placeholder="Texto para digitar" style="flex:1; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
+                        <button class="btn btn-primary btn-sm" onclick="addTextAction()">+ Adicionar</button>
+                    </div>
+                </div>
+
+                <div>
+                    <div style="font-size: 12px; color: #888; margin-bottom: 6px;">Fila de acoes:</div>
+                    <div class="recording-recorded" id="recordingQueue"></div>
+                    <div class="recording-actions">
+                        <button class="btn btn-success btn-sm" onclick="addQueueToFluxo()">✅ Adicionar ao Fluxo</button>
+                        <button class="btn btn-outline btn-sm" onclick="clearQueue()">Limpar Fila</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <button class="btn btn-primary" onclick="addNewFluxo()">+ Novo Fluxo</button>
+        </div>
+
+        <div class="fluxos-grid" id="fluxosGrid"></div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let fluxos = {};
+        let variables = [];
+        let recordingQueue = [];
+        let targetFluxo = null;
+        let currentFilePath = null;
+
+        // === FILE OPERATIONS (Electron IPC) ===
+
+        async function openFile() {
+            const result = await ipcRenderer.invoke('open-file');
+            if (!result) return;
+            currentFilePath = result.path;
+            fluxos = JSON.parse(result.data);
+            document.getElementById('fileInfo').textContent = currentFilePath.split(/[\\/]/).pop();
+            renderAll();
+        }
+
+        async function saveFile() {
+            updateFluxosFromDOM();
+            const json = JSON.stringify(fluxos, null, 2);
+            const result = await ipcRenderer.invoke('save-file', { content: json, filePath: currentFilePath });
+            if (result) {
+                currentFilePath = result;
+                document.getElementById('fileInfo').textContent = currentFilePath.split(/[\\/]/).pop();
+                saveToStorage();
+            }
+        }
+
+        async function saveFileAs() {
+            updateFluxosFromDOM();
+            const json = JSON.stringify(fluxos, null, 2);
+            const result = await ipcRenderer.invoke('save-file', { content: json, filePath: null });
+            if (result) {
+                currentFilePath = result;
+                document.getElementById('fileInfo').textContent = currentFilePath.split(/[\\/]/).pop();
+                saveToStorage();
+            }
+        }
+
+        ipcRenderer.on('menu-open', () => openFile());
+        ipcRenderer.on('menu-save', () => saveFile());
+        ipcRenderer.on('menu-save-as', () => saveFileAs());
+
+        // === FLUXOS ===
+
+        function addNewFluxo() {
+            const name = prompt('Nome do novo fluxo:', 'novo_fluxo');
+            if (!name) return;
+            if (fluxos[name] !== undefined) { alert('Ja existe um fluxo com esse nome!'); return; }
+            updateFluxosFromDOM();
+            fluxos[name] = [];
+            renderAll();
+        }
+
+        function renderAll() {
+            const grid = document.getElementById('fluxosGrid');
+            grid.innerHTML = '';
+            Object.keys(fluxos).forEach(name => {
+                grid.appendChild(createFluxoCard(name, fluxos[name]));
+            });
+            renderVariables();
+            saveToStorage();
+        }
+
+        function createFluxoCard(name, actions) {
+            const card = document.createElement('div');
+            card.className = 'fluxo-card';
+            card.dataset.name = name;
+
+            const header = document.createElement('div');
+            header.className = 'fluxo-header';
+            header.innerHTML = `
+                <span class="fluxo-label">Fluxo</span>
+                <input type="text" value="${name}" class="fluxo-name" onchange="renameFluxo(this)" />
+                <button class="btn btn-primary btn-sm" onclick="openRecordingPanel('${name}')">⏺ Gravar</button>
+                <button class="btn btn-danger btn-sm" onclick="removeFluxo(this)">Remover</button>
+            `;
+
+            const body = document.createElement('div');
+            body.className = 'fluxo-body';
+
+            const actionsList = document.createElement('div');
+            actionsList.className = 'actions-list';
+            actionsList.dataset.fluxo = name;
+            actions.forEach((action, idx) => {
+                actionsList.appendChild(createActionItem(action, name, idx));
+            });
+            setupDropZone(actionsList);
+
+            body.appendChild(actionsList);
+            card.appendChild(header);
+            card.appendChild(body);
+            return card;
+        }
+
+        function createActionItem(action, fluxoName, index) {
+            const item = document.createElement('div');
+            item.draggable = true;
+            item.dataset.index = index;
+            item.dataset.fluxo = fluxoName;
+
+            let display, cssClass;
+            if (typeof action === 'object' && action !== null) {
+                if (action.delay !== undefined) { display = `⏳ ${action.delay}ms`; cssClass = 'action-delay'; }
+                else if (action.mouse !== undefined) { display = `🖱 ${action.mouse} (${action.x},${action.y})`; cssClass = 'action-mouse'; }
+                else { display = JSON.stringify(action); cssClass = 'action-text'; }
+            } else if (typeof action === 'string') {
+                if (action.startsWith('VAR_')) { display = `{${action}}`; cssClass = 'action-var'; }
+                else if (['enter','esc','tab','space','backspace','delete','up','down','left','right','f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12'].includes(action.toLowerCase()) || action.length === 1) { display = `⌨ ${action}`; cssClass = 'action-key'; }
+                else { display = `"${action}"`; cssClass = 'action-text'; }
+            } else {
+                display = String(action);
+                cssClass = 'action-text';
+            }
+
+            item.className = `action-item ${cssClass}`;
+            item.innerHTML = `<span>${display}</span><span class="remove-btn" onclick="removeAction('${fluxoName}', ${index})">✕</span>`;
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', JSON.stringify({ fluxo: fluxoName, index }));
+                item.style.opacity = '0.5';
+            });
+            item.addEventListener('dragend', () => item.style.opacity = '1');
+            return item;
+        }
+
+        function setupDropZone(list) {
+            list.addEventListener('dragover', (e) => { e.preventDefault(); list.classList.add('drag-over'); });
+            list.addEventListener('dragleave', () => list.classList.remove('drag-over'));
+            list.addEventListener('drop', (e) => {
+                e.preventDefault();
+                list.classList.remove('drag-over');
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                if (data.fluxo !== list.dataset.fluxo) return;
+                const fromIdx = data.index;
+                const items = [...list.children];
+                let toIdx = items.indexOf(e.target.closest('.action-item'));
+                if (toIdx === -1) toIdx = items.length - 1;
+                if (fromIdx === toIdx) return;
+                updateFluxosFromDOM();
+                const arr = fluxos[list.dataset.fluxo];
+                const [moved] = arr.splice(fromIdx, 1);
+                arr.splice(toIdx > fromIdx ? toIdx : toIdx, 0, moved);
+                renderAll();
+            });
+        }
+
+        function removeAction(fluxoName, index) {
+            updateFluxosFromDOM();
+            fluxos[fluxoName].splice(index, 1);
+            renderAll();
+        }
+
+        function removeFluxo(btn) {
+            const card = btn.closest('.fluxo-card');
+            const name = card.querySelector('.fluxo-name').value;
+            if (confirm(`Remover fluxo "${name}"?`)) {
+                updateFluxosFromDOM();
+                delete fluxos[name];
+                renderAll();
+            }
+        }
+
+        function renameFluxo(input) {
+            updateFluxosFromDOM();
+            const oldName = input.closest('.fluxo-card').dataset.name;
+            const newName = input.value.trim();
+            if (!newName || newName === oldName) { renderAll(); return; }
+            if (fluxos[newName] !== undefined) { alert('Ja existe um fluxo com esse nome!'); renderAll(); return; }
+            fluxos[newName] = fluxos[oldName];
+            delete fluxos[oldName];
+            renderAll();
+        }
+
+        function updateFluxosFromDOM() {
+            document.querySelectorAll('.fluxo-card').forEach(card => {
+                const oldName = card.dataset.name;
+                const newName = card.querySelector('.fluxo-name').value.trim();
+                if (newName && newName !== oldName && fluxos[oldName] !== undefined) {
+                    fluxos[newName] = fluxos[oldName];
+                    delete fluxos[oldName];
+                }
+            });
+        }
+
+        // === RECORDING PANEL ===
+
+        function openRecordingPanel(fluxoName) {
+            targetFluxo = fluxoName;
+            document.getElementById('recordingPanel').classList.add('active');
+            document.getElementById('recordingTarget').textContent = `Fluxo: ${fluxoName}`;
+            recordingQueue = [];
+            renderQueue();
+            renderKeyboard();
+            renderVariables();
+        }
+
+        function closeRecordingPanel() {
+            document.getElementById('recordingPanel').classList.remove('active');
+            targetFluxo = null;
+            if (isKeyRecording) toggleKeyRecording();
+            if (isMouseRecording) toggleMouseRecording();
+        }
+
+        function switchTab(btn, tab) {
+            document.querySelectorAll('.recording-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.recording-section').forEach(s => s.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`section-${tab}`).classList.add('active');
+        }
+
+        // === QUEUE ===
+
+        function addToQueue(item) {
+            recordingQueue.push(item);
+            renderQueue();
+        }
+
+        function removeFromQueue(idx) {
+            recordingQueue.splice(idx, 1);
+            renderQueue();
+        }
+
+        function clearQueue() {
+            recordingQueue = [];
+            renderQueue();
+        }
+
+        function renderQueue() {
+            const container = document.getElementById('recordingQueue');
+            container.innerHTML = '';
+            recordingQueue.forEach((item, idx) => {
+                const el = document.createElement('span');
+                let display, cssClass;
+                if (typeof item === 'object') {
+                    if (item.delay !== undefined) { display = `⏳ ${item.delay}ms`; cssClass = 'action-delay'; }
+                    else if (item.mouse !== undefined) { display = `🖱 ${item.mouse} (${item.x},${item.y})`; cssClass = 'action-mouse'; }
+                    else { display = JSON.stringify(item); cssClass = 'action-text'; }
+                } else {
+                    if (item.startsWith('VAR_')) { display = `{${item}}`; cssClass = 'action-var'; }
+                    else if (item.length === 1 || ['enter','esc','tab','space','backspace','delete','up','down','left','right','f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12'].includes(item.toLowerCase())) { display = `⌨ ${item}`; cssClass = 'action-key'; }
+                    else { display = `"${item}"`; cssClass = 'action-text'; }
+                }
+                el.className = `action-item ${cssClass}`;
+                el.style.fontSize = '11px';
+                el.style.padding = '4px 8px';
+                el.innerHTML = `<span>${display}</span><span class="remove-btn" onclick="removeFromQueue(${idx})">✕</span>`;
+                container.appendChild(el);
+            });
+        }
+
+        function addQueueToFluxo() {
+            if (recordingQueue.length === 0) { alert('Fila vazia!'); return; }
+            if (!targetFluxo) { alert('Selecione um fluxo!'); return; }
+            updateFluxosFromDOM();
+            fluxos[targetFluxo] = fluxos[targetFluxo].concat(recordingQueue);
+            recordingQueue = [];
+            renderQueue();
+            renderAll();
+            document.getElementById('recordingTarget').textContent = `Fluxo: ${targetFluxo}`;
+        }
+
+        // === KEYBOARD ===
+
+        let isKeyRecording = false;
+
+        const keyboardLayout = [
+            ['esc', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12'],
+            ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'backspace'],
+            ['tab', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\'],
+            ['capslock', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'", 'enter'],
+            ['shiftleft', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 'shiftright'],
+            ['ctrlleft', 'altleft', 'space', 'altright', 'ctrlright']
+        ];
+
+        const keyDisplayNames = {
+            'esc': 'ESC', 'backspace': '⌫', 'tab': 'TAB', 'capslock': 'CAPS', 'enter': 'ENTER',
+            'shiftleft': '⇧', 'shiftright': '⇧', 'ctrlleft': 'CTRL', 'ctrlright': 'CTRL',
+            'altleft': 'ALT', 'altright': 'ALT', 'space': 'SPACE',
+            'f1': 'F1', 'f2': 'F2', 'f3': 'F3', 'f4': 'F4', 'f5': 'F5', 'f6': 'F6',
+            'f7': 'F7', 'f8': 'F8', 'f9': 'F9', 'f10': 'F10', 'f11': 'F11', 'f12': 'F12',
+            'up': '↑', 'down': '↓', 'left': '←', 'right': '→'
+        };
+
+        function renderKeyboard() {
+            const layout = document.getElementById('keyboardLayout');
+            layout.innerHTML = '';
+            keyboardLayout.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'key-row';
+                row.forEach(key => {
+                    const keyBtn = document.createElement('div');
+                    let cssClass = 'key';
+                    if (key === 'space') cssClass += ' spacebar';
+                    else if (['ctrlleft', 'ctrlright', 'altleft', 'altright', 'shiftright', 'shiftleft'].includes(key)) cssClass += ' wide';
+                    else if (['enter', 'backspace', 'capslock', 'tab', 'esc'].includes(key)) cssClass += ' wider';
+                    else if (['f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12'].includes(key)) cssClass += ' special';
+                    keyBtn.className = cssClass;
+                    keyBtn.textContent = keyDisplayNames[key] || key.toUpperCase();
+                    keyBtn.dataset.key = key;
+                    keyBtn.onclick = () => addToQueue(key);
+                    rowDiv.appendChild(keyBtn);
+                });
+                layout.appendChild(rowDiv);
+            });
+            const arrowRow = document.createElement('div');
+            arrowRow.className = 'key-row';
+            arrowRow.style.marginTop = '8px';
+            ['up', 'left', 'down', 'right'].forEach(key => {
+                const keyBtn = document.createElement('div');
+                keyBtn.className = 'key';
+                keyBtn.textContent = keyDisplayNames[key];
+                keyBtn.onclick = () => addToQueue(key);
+                arrowRow.appendChild(keyBtn);
+            });
+            layout.appendChild(arrowRow);
+        }
+
+        function toggleKeyRecording() {
+            isKeyRecording = !isKeyRecording;
+            const btn = document.getElementById('keyRecordBtn');
+            if (isKeyRecording) {
+                btn.classList.add('recording');
+                btn.textContent = '⏹ Parar';
+            } else {
+                btn.classList.remove('recording');
+                btn.textContent = '🎤 Gravar Teclas';
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!isKeyRecording) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            e.preventDefault();
+            let key = e.key.toLowerCase();
+            const keyMap = {
+                'arrowup': 'up', 'arrowdown': 'down', 'arrowleft': 'left', 'arrowright': 'right',
+                'escape': 'esc', ' ': 'space', 'backspace': 'backspace', 'tab': 'tab',
+                'capslock': 'capslock', 'enter': 'enter',
+                'shift': 'shiftleft', 'control': 'ctrlleft', 'alt': 'altleft',
+                'f1': 'f1', 'f2': 'f2', 'f3': 'f3', 'f4': 'f4', 'f5': 'f5', 'f6': 'f6',
+                'f7': 'f7', 'f8': 'f8', 'f9': 'f9', 'f10': 'f10', 'f11': 'f11', 'f12': 'f12'
+            };
+            key = keyMap[key] || key;
+            const keyEl = document.querySelector(`.key[data-key="${key}"]`);
+            if (keyEl) {
+                keyEl.style.background = '#6c5ce7';
+                setTimeout(() => keyEl.style.background = '', 150);
+            }
+            addToQueue(key);
+        });
+
+        // === MOUSE ===
+
+        let isMouseRecording = false;
+
+        function addMouseAction(type) {
+            const x = parseInt(document.getElementById('mouseX').value) || 0;
+            const y = parseInt(document.getElementById('mouseY').value) || 0;
+            addToQueue({ mouse: type, x, y });
+        }
+
+        function toggleMouseRecording() {
+            isMouseRecording = !isMouseRecording;
+            const btn = document.getElementById('mouseRecordBtn');
+            if (isMouseRecording) {
+                btn.classList.add('recording');
+                btn.textContent = '⏹ Parar';
+                document.addEventListener('click', captureMouseClick, true);
+            } else {
+                btn.classList.remove('recording');
+                btn.textContent = '🎯 Gravar na Tela';
+                document.removeEventListener('click', captureMouseClick, true);
+            }
+        }
+
+        function captureMouseClick(e) {
+            if (!isMouseRecording) return;
+            const target = e.target;
+            if (target.tagName === 'BUTTON' || target.closest('button') || target.tagName === 'INPUT' || target.tagName === 'A') return;
+            e.preventDefault();
+            e.stopPropagation();
+            const x = e.clientX;
+            const y = e.clientY;
+            document.getElementById('mouseX').value = x;
+            document.getElementById('mouseY').value = y;
+            let type = 'click';
+            if (e.button === 2) type = 'rightclick';
+            if (e.detail === 2) type = 'doubleclick';
+            addToQueue({ mouse: type, x, y });
+            const dot = document.createElement('div');
+            dot.style.cssText = `position:fixed;left:${x-5}px;top:${y-5}px;width:10px;height:10px;background:#fd79a8;border-radius:50%;pointer-events:none;z-index:99999;animation:fadeOut 0.5s forwards;`;
+            document.body.appendChild(dot);
+            setTimeout(() => dot.remove(), 500);
+        }
+
+        document.addEventListener('contextmenu', (e) => { if (isMouseRecording) e.preventDefault(); });
+
+        // === VARIABLES ===
+
+        function addVariable() {
+            const input = document.getElementById('newVarName');
+            const name = input.value.trim().toUpperCase();
+            if (!name) return;
+            if (variables.includes(name)) { alert('Variavel ja existe!'); return; }
+            variables.push(name);
+            input.value = '';
+            renderVariables();
+            saveToStorage();
+        }
+
+        function removeVariable(name) {
+            variables = variables.filter(v => v !== name);
+            renderVariables();
+            saveToStorage();
+        }
+
+        function renderVariables() {
+            const container = document.getElementById('varsList');
+            if (!container) return;
+            container.innerHTML = '';
+            variables.forEach(v => {
+                const tag = document.createElement('span');
+                tag.className = 'var-tag';
+                tag.innerHTML = `{${v}} <span class="var-remove" onclick="event.stopPropagation(); removeVariable('${v}')">✕</span>`;
+                tag.onclick = () => addToQueue(v);
+                container.appendChild(tag);
+            });
+        }
+
+        // === DELAY ===
+
+        function addDelayAction() {
+            const ms = parseInt(document.getElementById('delayValue').value) || 0;
+            addToQueue({ delay: ms });
+        }
+
+        function addDelayPreset(ms) {
+            document.getElementById('delayValue').value = ms;
+            addToQueue({ delay: ms });
+        }
+
+        // === TEXT ===
+
+        function addTextAction() {
+            const text = document.getElementById('textValue').value.trim();
+            if (!text) return;
+            addToQueue(text);
+            document.getElementById('textValue').value = '';
+        }
+
+        // === STORAGE ===
+
+        function saveToStorage() {
+            localStorage.setItem('fluxos_editor_data', JSON.stringify(fluxos));
+            localStorage.setItem('fluxos_editor_vars', JSON.stringify(variables));
+        }
+
+        function loadFromStorage() {
+            const data = localStorage.getItem('fluxos_editor_data');
+            const vars = localStorage.getItem('fluxos_editor_vars');
+            if (vars) { try { variables = JSON.parse(vars); } catch(e) {} }
+            if (data) {
+                try {
+                    fluxos = JSON.parse(data);
+                    renderAll();
+                    return true;
+                } catch(e) {}
+            }
+            return false;
+        }
+
+        const observer = new MutationObserver(() => { saveToStorage(); });
+        observer.observe(document.getElementById('fluxosGrid'), { childList: true, subtree: true, attributes: true });
+
+        loadFromStorage();
+    </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "name": "editor-fluxos",
+  "version": "1.0.0",
+  "description": "Editor de Fluxos Desktop",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.editorfluxos.app",
+    "productName": "Editor de Fluxos",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  }
+}
