@@ -1,0 +1,20 @@
+{
+  "novo_fluxo": [
+    {
+      "mouse": "click",
+      "x": 524,
+      "y": 1067
+    },
+    "f1",
+    "f2",
+    "f3",
+    "ITEM_OBRIGATORIO",
+    "t",
+    "e",
+    "s",
+    "t",
+    "e",
+    "ITEM_OPCIONAL",
+    "enter"
+  ]
+}
