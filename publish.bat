@@ -68,15 +68,9 @@ cd /d "C:\Users\Bill\Desktop\Fabricio\dev"
 "C:\Program Files\GitHub CLI\gh.exe" release create "v%NEW_VERSION%" "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\release\*.exe" --title "v%NEW_VERSION%" --notes "%MSG%" --repo "Billhebert/editor-fluxos"
 
 echo.
-echo [4/5] Copiando arquivos para PUBLIC...
-xcopy /E /Y /Q "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\dist\main.js" "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\"
-xcopy /E /Y /Q "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\index.html" "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\"
-xcopy /E /Y /Q "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\package.json" "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\"
-xcopy /E /Y /Q "C:\Users\Bill\Desktop\Fabricio\dev\publish.bat" "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\" 2>nul
-
-echo.
-echo [5/5] Commitando + push no PUBLIC...
+echo [4/5] Commitando + push no PUBLIC...
 cd /d "C:\Users\Bill\Desktop\Fabricio\public"
+git rm -r -q editor-fluxos --ignore-unmatch
 git add -A
 git commit -m "v%NEW_VERSION% - %MSG%"
 git push
