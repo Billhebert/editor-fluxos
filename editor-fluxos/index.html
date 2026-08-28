@@ -4,15 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
-    <title>Editor de Fluxos</title>
+    <title>FLUXO</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
-
         .header { background: #1a1a2e; border-bottom: 1px solid #333; padding: 16px 24px; display: flex; align-items: center; gap: 16px; -webkit-app-region: drag; }
         .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
         .header-actions { margin-left: auto; display: flex; gap: 8px; -webkit-app-region: no-drag; flex-wrap: wrap; }
-
         .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
         .btn-primary { background: #6c5ce7; color: #fff; }
         .btn-primary:hover { background: #5a4bd1; }
@@ -25,144 +23,85 @@
         .btn-warning { background: #e17055; color: #fff; }
         .btn-warning:hover { background: #d35d43; }
         .btn-sm { padding: 5px 10px; font-size: 12px; }
-
         .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-
         .fluxos-grid { display: flex; flex-direction: column; gap: 16px; }
-
         .fluxo-card { background: #1a1a2e; border: 1px solid #333; border-radius: 10px; overflow: hidden; }
         .fluxo-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #16162a; border-bottom: 1px solid #333; }
         .fluxo-header input { background: transparent; border: none; color: #a29bfe; font-size: 16px; font-weight: 600; font-family: 'Consolas', monospace; flex: 1; }
         .fluxo-header input:focus { outline: none; }
         .fluxo-header .fluxo-label { color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-
         .fluxo-body { padding: 12px; }
-
-        .actions-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 48px; padding: 8px; background: #0f0f0f; border-radius: 8px; border: 2px dashed #333; align-items: flex-start; align-content: flex-start; }
-        .actions-list:empty::before { content: 'Clique em Gravar para adicionar acoes', color: #555; font-size: 13px; }
-
+        .action-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 48px; padding: 8px; background: #0f0f0f; border-radius: 8px; border: 2px dashed #333; align-items: flex-start; align-content: flex-start; }
+        .action-list:empty::before { content: 'Clique em Gravar para adicionar acoes', color: #555; font-size: 13px; }
         .action-item { display: flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 13px; cursor: grab; position: relative; user-select: none; }
         .action-item:active { cursor: grabbing; }
-        .action-item .remove-btn { opacity: 0; cursor: pointer; color: #e74c3c; font-weight: bold; margin-left: 4px; transition: opacity 0.1s; }
-        .action-item:hover .remove-btn { opacity: 1; }
-
-        .action-var { background: #2d1f5e; border: 1px solid #6c5ce7; color: #a29bfe; }
-        .action-obrig { background: #5e3d1f; border: 1px solid #e17055; color: #fab1a0; }
-        .action-opcional { background: #1f5e4a; border: 1px solid #00cec9; color: #81ecec; }
+        .action-item .action-remove { opacity: 0; cursor: pointer; color: #e74c3c; font-weight: bold; margin-left: 4px; transition: opacity 0.1s; background: none; border: none; font-size: 12px; }
+        .action-item:hover .action-remove { opacity: 1; }
         .action-key { background: #1f3d2d; border: 1px solid #00b894; color: #55efc4; }
         .action-text { background: #3d2d1f; border: 1px solid #e17055; color: #fab1a0; }
         .action-delay { background: #1f2d3d; border: 1px solid #74b9ff; color: #74b9ff; }
         .action-mouse { background: #3d1f2d; border: 1px solid #fd79a8; color: #fd79a8; }
-
+        .action-obrigatorio { background: #5e3d1f; border: 1px solid #e17055; color: #fab1a0; }
+        .action-opcional { background: #1f5e4a; border: 1px solid #00cec9; color: #81ecec; }
+        .action-variable { background: #2d1f5e; border: 1px solid #6c5ce7; color: #a29bfe; }
         .drag-over { border-color: #6c5ce7 !important; background: #1a1a3e !important; }
-
         .recording-panel { display: none; background: #1a1a2e; border: 1px solid #333; border-radius: 10px; margin-bottom: 24px; overflow: hidden; }
         .recording-panel.active { display: block; }
         .recording-panel-header { padding: 12px 16px; background: #16162a; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 12px; }
         .recording-panel-header h3 { font-size: 14px; color: #fff; }
         .recording-panel-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
-
         .recording-tabs { display: flex; gap: 4px; }
         .recording-tab { padding: 8px 16px; border: 1px solid #333; border-radius: 6px; background: transparent; color: #aaa; cursor: pointer; font-size: 13px; transition: all 0.15s; }
         .recording-tab:hover { background: #222; }
         .recording-tab.active { background: #6c5ce7; border-color: #6c5ce7; color: #fff; }
-
         .recording-section { display: none; }
         .recording-section.active { display: block; }
-
         .recording-recorded { display: flex; flex-wrap: wrap; gap: 4px; min-height: 36px; padding: 8px; background: #0f0f0f; border-radius: 6px; border: 1px dashed #444; align-items: flex-start; }
         .recording-recorded:empty::before { content: 'Nenhum item na fila', color: #555; font-size: 12px; }
-
         .record-btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; background: #e74c3c; color: #fff; }
         .record-btn:hover { background: #c0392b; }
         .record-btn.recording { animation: pulse 1s infinite; }
+        .recording-active { animation: pulse 1s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        @keyframes fadeOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(2); } }
-
         .recording-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-
-        .key-row { display: flex; gap: 4px; margin-bottom: 4px; justify-content: center; }
-        .key { min-width: 40px; height: 36px; background: #2d2d4a; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; user-select: none; }
-        .key:hover { background: #3d3d5a; border-color: #6c5ce7; }
-        .key:active { background: #6c5ce7; transform: scale(0.95); }
-        .key.wide { min-width: 60px; }
-        .key.wider { min-width: 80px; }
-        .key.special { background: #1f3d2d; border-color: #00b894; }
-        .key.spacebar { min-width: 250px; background: #2d1f5e; border-color: #6c5ce7; }
-
+        .keyboard-row { display: flex; gap: 4px; margin-bottom: 4px; justify-content: center; }
+        .key-btn { min-width: 40px; height: 36px; background: #2d2d4a; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; user-select: none; }
+        .key-btn:hover { background: #3d3d5a; border-color: #6c5ce7; }
+        .key-btn:active { background: #6c5ce7; transform: scale(0.95); }
         .mouse-coords { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
         .mouse-coords label { font-size: 12px; color: #aaa; }
         .mouse-coords input { width: 80px; background: #0f0f0f; border: 1px solid #444; border-radius: 4px; color: #fff; padding: 4px 8px; font-size: 12px; text-align: center; }
-
-        .vars-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-        .var-tag { padding: 6px 12px; background: #2d1f5e; border: 1px solid #6c5ce7; border-radius: 6px; color: #a29bfe; font-family: 'Consolas', monospace; font-size: 12px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
-        .var-tag:hover { background: #3d2f6e; border-color: #a29bfe; }
-        .var-tag .var-remove { cursor: pointer; color: #e74c3c; font-weight: bold; }
-        .var-tag .var-remove:hover { color: #ff6b6b; }
-        .var-add { display: flex; gap: 6px; }
-        .var-add input { flex: 1; background: #0f0f0f; border: 1px solid #444; border-radius: 4px; color: #fff; padding: 6px 10px; font-size: 13px; }
-        .var-add input:focus { outline: none; border-color: #6c5ce7; }
-
-        .var-tag-obrig { background: #5e3d1f; border-color: #e17055; color: #fab1a0; }
-        .var-tag-obrig:hover { background: #6e4d2f; border-color: #e17055; }
-        .var-tag-opcional { background: #1f5e4a; border-color: #00cec9; color: #81ecec; }
-        .var-tag-opcional:hover { background: #2f6e5a; border-color: #00cec9; }
-
+        .variable-tag { padding: 6px 12px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .variable-tag.obrigatorio { background: #5e3d1f; border: 1px solid #e17055; color: #fab1a0; }
+        .variable-tag.opcional { background: #1f5e4a; border: 1px solid #00cec9; color: #81ecec; }
+        .variable-tag.custom { background: #2d1f5e; border: 1px solid #6c5ce7; color: #a29bfe; }
         .delay-options { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .delay-options input { width: 80px; background: #0f0f0f; border: 1px solid #444; border-radius: 4px; color: #fff; padding: 6px 10px; font-size: 13px; text-align: center; }
-        .delay-options input:focus { outline: none; border-color: #6c5ce7; }
         .delay-preset { padding: 6px 12px; background: #1f2d3d; border: 1px solid #74b9ff; border-radius: 4px; color: #74b9ff; cursor: pointer; font-size: 12px; }
         .delay-preset:hover { background: #2f3d4d; }
-
         .file-info { font-size: 12px; color: #888; margin-left: 12px; }
-
         .fluxo-card.running { border: 2px solid #00b894; }
         .action-item.executing { outline: 2px solid #00b894; z-index: 10; background: #1f3d2d; }
-
-        /* === MODALS === */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999;
-        }
-        .modal-box {
-            background: #1a1a2e; border: 1px solid #444; border-radius: 8px; padding: 24px;
-            min-width: 350px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-        }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .modal-box { background: #1a1a2e; border: 1px solid #444; border-radius: 8px; padding: 24px; min-width: 350px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
         .modal-box h3 { margin: 0 0 16px 0; color: #fff; font-size: 16px; }
-        .modal-box input {
-            width: 100%; background: #0f0f0f; border: 1px solid #444; border-radius: 4px;
-            color: #fff; padding: 10px 12px; font-size: 14px; box-sizing: border-box;
-        }
+        .modal-box input { width: 100%; background: #0f0f0f; border: 1px solid #444; border-radius: 4px; color: #fff; padding: 10px 12px; font-size: 14px; box-sizing: border-box; }
         .modal-box input:focus { outline: none; border-color: #6c5ce7; }
         .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-
-        /* Full-screen modal */
-        .modal-fullscreen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #0f0f0f; z-index: 9999; overflow-y: auto; padding: 24px;
-        }
-        .modal-fullscreen-header {
-            display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #333;
-        }
+        .modal-fullscreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f0f0f; z-index: 9999; overflow-y: auto; padding: 24px; }
+        .modal-fullscreen-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #333; }
         .modal-fullscreen-header h2 { color: #fff; font-size: 18px; }
         .modal-fullscreen-header .btn { margin-left: auto; }
-
-        /* Tables */
         .data-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
         .data-table th { background: #16162a; color: #aaa; font-size: 12px; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid #333; }
         .data-table td { padding: 8px 12px; border-bottom: 1px solid #222; font-size: 13px; }
         .data-table tr:hover td { background: #1a1a2e; }
         .data-table input { background: #0f0f0f; border: 1px solid #333; border-radius: 4px; color: #fff; padding: 4px 8px; font-size: 12px; width: 100%; }
         .data-table input:focus { outline: none; border-color: #6c5ce7; }
-        .data-table select { background: #0f0f0f; border: 1px solid #333; border-radius: 4px; color: #fff; padding: 4px 8px; font-size: 12px; }
-
-        /* Status badges */
         .status-pending { color: #fdcb6e; }
         .status-running { color: #74b9ff; }
         .status-completed { color: #00b894; }
         .status-failed { color: #e74c3c; }
-
-        /* Toast notifications */
         .toast-container { position: fixed; top: 16px; right: 16px; z-index: 99999; display: flex; flex-direction: column; gap: 8px; }
         .toast { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 12px 16px; min-width: 280px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px; }
         .toast.success { border-left: 4px solid #00b894; }
@@ -170,48 +109,41 @@
         .toast.info { border-left: 4px solid #74b9ff; }
         .toast-icon { font-size: 18px; }
         .toast-msg { font-size: 13px; color: #ddd; flex: 1; }
-        .toast-close { cursor: pointer; color: #666; font-size: 14px; }
+        .toast-close { cursor: pointer; color: #666; font-size: 14px; background: none; border: none; }
         .toast-close:hover { color: #fff; }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-        /* Schedule cards */
         .schedule-card { background: #1a1a2e; border: 1px solid #333; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
         .schedule-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
         .schedule-card-header h4 { color: #a29bfe; font-size: 14px; flex: 1; }
-        .schedule-card-meta { font-size: 12px; color: #888; display: flex; gap: 16px; }
+        .schedule-card-meta { font-size: 12px; color: #888; display: flex; gap: 16px; flex-wrap: wrap; }
         .schedule-card-meta span { display: flex; align-items: center; gap: 4px; }
-
-        /* Checkbox toggle */
-        .toggle { position: relative; width: 40px; height: 20px; cursor: pointer; }
+        .toggle { position: relative; width: 40px; height: 20px; cursor: pointer; display: inline-block; }
         .toggle input { display: none; }
         .toggle-slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #333; border-radius: 20px; transition: 0.2s; }
         .toggle-slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 2px; bottom: 2px; background: #fff; border-radius: 50%; transition: 0.2s; }
         .toggle input:checked + .toggle-slider { background: #00b894; }
         .toggle input:checked + .toggle-slider:before { transform: translateX(20px); }
-
-        /* Section titles */
         .section-title { color: #fff; font-size: 14px; font-weight: 600; margin: 16px 0 8px 0; padding-bottom: 6px; border-bottom: 1px solid #333; }
-
-        /* Config inline form */
         .config-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
         .config-row input { background: #0f0f0f; border: 1px solid #444; border-radius: 4px; color: #fff; padding: 6px 10px; font-size: 13px; }
         .config-row input:focus { outline: none; border-color: #6c5ce7; }
-
-        /* Empty state */
         .empty-state { text-align: center; padding: 32px; color: #555; font-size: 13px; }
+        .update-badge { display: none; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer; }
+        .btn-update-install { background: #00b894; color: #fff; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Editor de Fluxos</h1>
+        <h1>FLUXO</h1>
         <span class="file-info" id="fileInfo"></span>
+        <span id="updateBadge" class="update-badge"></span>
         <div class="header-actions">
-            <button class="btn btn-outline btn-sm" onclick="openFile()">📂 Abrir</button>
-            <button class="btn btn-success btn-sm" onclick="saveFile()">💾 Salvar</button>
-            <button class="btn btn-outline btn-sm" onclick="saveFileAs()">💾 Salvar Como</button>
+            <button class="btn btn-outline btn-sm" data-action="open-file">📂 Abrir</button>
+            <button class="btn btn-success btn-sm" data-action="save-file">💾 Salvar</button>
+            <button class="btn btn-outline btn-sm" data-action="save-file-as">💾 Salvar Como</button>
             <span style="color:#444">|</span>
-            <button class="btn btn-warning btn-sm" onclick="openVarConfig()">⚙ Config Variaveis</button>
-            <button class="btn btn-primary btn-sm" onclick="openSchedules()">📅 Agendamentos</button>
+            <button class="btn btn-warning btn-sm" data-action="open-var-config">⚙ Config Variaveis</button>
+            <button class="btn btn-primary btn-sm" data-action="open-schedules">📅 Agendamentos</button>
         </div>
     </div>
 
@@ -222,1340 +154,114 @@
             <div class="recording-panel-header">
                 <h3>Modo Gravacao</h3>
                 <span style="font-size: 12px; color: #888;" id="recordingTarget">Fluxo: ---</span>
-                <button class="btn btn-outline btn-sm" onclick="closeRecordingPanel()" style="margin-left: auto;">✕ Fechar</button>
+                <button class="btn btn-outline btn-sm" data-action="close-recording" style="margin-left: auto;">✕ Fechar</button>
             </div>
             <div class="recording-panel-body">
                 <div class="recording-tabs">
-                    <button class="recording-tab active" onclick="switchTab(this, 'keys')">⌨ Teclado</button>
-                    <button class="recording-tab" onclick="switchTab(this, 'mouse')">🖱 Mouse</button>
-                    <button class="recording-tab" onclick="switchTab(this, 'vars')">📦 Variaveis</button>
-                    <button class="recording-tab" onclick="switchTab(this, 'delay')">⏱ Delay</button>
-                    <button class="recording-tab" onclick="switchTab(this, 'text')">✏ Texto</button>
+                    <button class="recording-tab active" data-action="switch-tab" data-arg="keys">⌨ Teclado</button>
+                    <button class="recording-tab" data-action="switch-tab" data-arg="mouse">🖱 Mouse</button>
+                    <button class="recording-tab" data-action="switch-tab" data-arg="vars">📦 Variaveis</button>
+                    <button class="recording-tab" data-action="switch-tab" data-arg="delay">⏱ Delay</button>
+                    <button class="recording-tab" data-action="switch-tab" data-arg="text">✏ Texto</button>
                 </div>
 
                 <div class="recording-section active" id="section-keys">
                     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-                        <button class="record-btn" id="keyRecordBtn" onclick="toggleKeyRecording()">🎤 Gravar Teclas</button>
+                        <button class="record-btn" id="keyRecBtn" data-action="toggle-key-recording">⏺ Gravar Fisico</button>
                         <span style="font-size: 11px; color: #888;">Pressione teclas no teclado fisico ou clique nas abaixo</span>
                     </div>
-                    <div id="keyboardLayout"></div>
+                    <div id="keyboardContainer"></div>
                 </div>
 
                 <div class="recording-section" id="section-mouse">
                     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-                        <button class="record-btn" id="captureBtn" onclick="toggleGlobalCapture()">🎯 Capturar Fora do App</button>
-                        <span style="font-size: 11px; color: #888;" id="captureStatus">Atalho: Ctrl+Shift+C</span>
-                    </div>
-                    <div style="font-size: 11px; color: #666; margin-bottom: 8px; padding: 6px; background: #0f0f0f; border-radius: 4px;">
-                        Ative a captura, va para qualquer tela e pressione <b>Ctrl+Shift+C</b> para capturar a posicao do mouse.
-                    </div>
-                    <div style="font-size: 11px; color: #888; margin-bottom: 8px;">
-                        Posicao atual: <span id="mousePosDisplay">---, ---</span>
+                        <button class="record-btn" id="globalCaptureBtn" data-action="toggle-global-capture">🖱 Captura Global</button>
+                        <span style="font-size: 11px; color: #888;">Atalho: Ctrl+Shift+C</span>
                     </div>
                     <div class="mouse-coords">
                         <label>X: <input type="number" id="mouseX" value="0" min="0"></label>
                         <label>Y: <input type="number" id="mouseY" value="0" min="0"></label>
-                        <button class="btn btn-outline btn-sm" onclick="addMouseAction('click')">+ Click</button>
-                        <button class="btn btn-outline btn-sm" onclick="addMouseAction('rightclick')">+ Click Direito</button>
-                        <button class="btn btn-outline btn-sm" onclick="addMouseAction('doubleclick')">+ Duplo Click</button>
+                        <button class="btn btn-outline btn-sm" data-action="add-mouse-action" data-arg="click">+ Click</button>
+                        <button class="btn btn-outline btn-sm" data-action="add-mouse-action" data-arg="rightclick">+ Click Direito</button>
+                        <button class="btn btn-outline btn-sm" data-action="add-mouse-action" data-arg="doubleclick">+ Duplo Click</button>
                     </div>
                 </div>
 
                 <div class="recording-section" id="section-vars">
                     <div style="font-size: 12px; color: #888; margin-bottom: 8px;">
-                        Clique em uma variavel para adicionar ao fluxo.
-                        <span style="color:#e17055">ITEM_OBRIGATORIO</span> pega o proximo item da fila com quota.
-                        <span style="color:#00cec9">ITEM_OPCIONAL</span> pega um aleatorio do pool.
+                        Clique para adicionar. <span style="color:#e17055">ITEM_OBRIGATORIO</span> = item fixo. <span style="color:#00cec9">ITEM_OPCIONAL</span> = aleatorio do pool.
                     </div>
-                    <div class="var-add">
-                        <input type="text" id="newVarName" placeholder="Nome da variavel (ex: VAR_ITEM)" />
-                        <button class="btn btn-primary btn-sm" onclick="addVariable()">+ Adicionar</button>
+                    <div class="config-row">
+                        <input type="text" id="varInput" placeholder="Nome da variavel" style="flex:1; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
+                        <button class="btn btn-primary btn-sm" data-action="add-variable">+ Adicionar</button>
                     </div>
-                    <div class="vars-list" id="varsList" style="margin-top: 8px;"></div>
+                    <div id="variablesContainer" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;"></div>
                 </div>
 
                 <div class="recording-section" id="section-delay">
                     <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Adicione uma pausa entre acoes.</div>
                     <div class="delay-options">
-                        <input type="number" id="delayValue" value="500" min="0" step="100" />
+                        <input type="number" id="delayInput" value="500" min="0" step="100" />
                         <span style="color: #888;">ms</span>
-                        <button class="btn btn-outline btn-sm" onclick="addDelayAction()">+ Adicionar</button>
-                        <span style="margin-left: 8px; color: #555;">|</span>
-                        <button class="delay-preset" onclick="addDelayPreset(100)">100ms</button>
-                        <button class="delay-preset" onclick="addDelayPreset(250)">250ms</button>
-                        <button class="delay-preset" onclick="addDelayPreset(500)">500ms</button>
-                        <button class="delay-preset" onclick="addDelayPreset(1000)">1s</button>
-                        <button class="delay-preset" onclick="addDelayPreset(2000)">2s</button>
+                        <button class="btn btn-outline btn-sm" data-action="add-delay-action">+ Adicionar</button>
+                        <button class="delay-preset" data-action="delay-preset" data-arg="100">100ms</button>
+                        <button class="delay-preset" data-action="delay-preset" data-arg="500">500ms</button>
+                        <button class="delay-preset" data-action="delay-preset" data-arg="1000">1s</button>
+                        <button class="delay-preset" data-action="delay-preset" data-arg="2000">2s</button>
                     </div>
                 </div>
 
                 <div class="recording-section" id="section-text">
                     <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Digite um texto para ser inserido.</div>
                     <div style="display: flex; gap: 8px;">
-                        <input type="text" id="textValue" placeholder="Texto para digitar" style="flex:1; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
-                        <button class="btn btn-primary btn-sm" onclick="addTextAction()">+ Adicionar</button>
+                        <input type="text" id="textInput" placeholder="Texto para digitar" style="flex:1; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
+                        <button class="btn btn-primary btn-sm" data-action="add-text-action">+ Adicionar</button>
                     </div>
                 </div>
 
                 <div>
                     <div style="font-size: 12px; color: #888; margin-bottom: 6px;">Fila de acoes:</div>
-                    <div class="recording-recorded" id="recordingQueue"></div>
+                    <div class="recording-recorded" id="queueList"></div>
                     <div class="recording-actions">
-                        <button class="btn btn-success btn-sm" onclick="addQueueToFluxo()">✅ Adicionar ao Fluxo</button>
-                        <button class="btn btn-outline btn-sm" onclick="clearQueue()">Limpar Fila</button>
+                        <button class="btn btn-success btn-sm" data-action="add-queue-to-fluxo">✅ Adicionar ao Fluxo</button>
+                        <button class="btn btn-outline btn-sm" data-action="clear-queue">Limpar Fila</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div style="margin-bottom: 16px;">
-            <button class="btn btn-primary" onclick="addNewFluxo()">+ Novo Fluxo</button>
+            <button class="btn btn-primary" data-action="add-new-fluxo">+ Novo Fluxo</button>
         </div>
 
         <div class="fluxos-grid" id="fluxosGrid"></div>
     </div>
 
     <script>
-        const { ipcRenderer } = require('electron');
-
-        let fluxos = {};
-        let variables = [];
-        let varConfig = { obrigatorias: [], opcionais: [] };
-        let schedules = [];
-        let recordingQueue = [];
-        let targetFluxo = null;
-        let currentFilePath = null;
-
-        // === TOAST NOTIFICATIONS ===
-
-        function showToast(msg, type = 'info') {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-            toast.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span><span class="toast-msg">${msg}</span><span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
-            container.appendChild(toast);
-            setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
+        function showFatalError(err) {
+            console.error(err);
+            const div = document.createElement('div');
+            div.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#e17055;color:#fff;padding:12px;z-index:999999;font-family:Consolas,monospace;font-size:13px;white-space:pre-wrap;';
+            div.textContent = 'Erro: ' + (err && err.message ? err.message : String(err));
+            document.body.appendChild(div);
         }
+        window.addEventListener('error', (e) => showFatalError(e.error || e.message));
 
-        // === FILE OPERATIONS ===
-
-        async function openFile() {
-            const result = await ipcRenderer.invoke('open-file');
-            if (!result) return;
-            currentFilePath = result.path;
-            fluxos = JSON.parse(result.data);
-            document.getElementById('fileInfo').textContent = currentFilePath.split(/[\\/]/).pop();
-            renderAll();
-        }
-
-        async function saveFile() {
-            updateFluxosFromDOM();
-            const json = JSON.stringify(fluxos, null, 2);
-            const result = await ipcRenderer.invoke('save-file', { content: json, filePath: currentFilePath });
-            if (result) {
-                currentFilePath = result;
-                document.getElementById('fileInfo').textContent = currentFilePath.split(/[\\/]/).pop();
-                saveToStorage();
-            }
-        }
-
-        async function saveFileAs() {
-            updateFluxosFromDOM();
-            const json = JSON.stringify(fluxos, null, 2);
-            const result = await ipcRenderer.invoke('save-file', { content: json, filePath: null });
-            if (result) {
-                currentFilePath = result;
-                document.getElementById('fileInfo').textContent = currentFilePath.split(/[\\/]/).pop();
-                saveToStorage();
-            }
-        }
-
-        ipcRenderer.on('menu-open', () => openFile());
-        ipcRenderer.on('menu-save', () => saveFile());
-        ipcRenderer.on('menu-save-as', () => saveFileAs());
-
-        // === FLUXOS ===
-
-        async function addNewFluxo() {
-            const name = await customPrompt('Nome do novo fluxo:', 'novo_fluxo');
-            if (!name) return;
-            if (fluxos[name] !== undefined) { alert('Ja existe um fluxo com esse nome!'); return; }
-            updateFluxosFromDOM();
-            fluxos[name] = [];
-            renderAll();
-        }
-
-        function renderAll() {
-            const grid = document.getElementById('fluxosGrid');
-            grid.innerHTML = '';
-            Object.keys(fluxos).forEach(name => {
-                grid.appendChild(createFluxoCard(name, fluxos[name]));
-            });
-            renderVariables();
-            saveToStorage();
-        }
-
-        function createFluxoCard(name, actions) {
-            const card = document.createElement('div');
-            card.className = 'fluxo-card';
-            card.dataset.name = name;
-
-            const header = document.createElement('div');
-            header.className = 'fluxo-header';
-            header.innerHTML = `
-                <span class="fluxo-label">Fluxo</span>
-                <input type="text" value="${name}" class="fluxo-name" onchange="renameFluxo(this)" />
-                <button class="btn btn-primary btn-sm" onclick="openRecordingPanel('${name}')">⏺ Gravar</button>
-                <button class="btn btn-success btn-sm" onclick="executeFlow('${name}')">▶ Executar</button>
-                <button class="btn btn-danger btn-sm" onclick="removeFluxo(this)">Remover</button>
-            `;
-
-            const body = document.createElement('div');
-            body.className = 'fluxo-body';
-
-            const actionsList = document.createElement('div');
-            actionsList.className = 'actions-list';
-            actionsList.dataset.fluxo = name;
-            actions.forEach((action, idx) => {
-                actionsList.appendChild(createActionItem(action, name, idx));
-            });
-            setupDropZone(actionsList);
-
-            body.appendChild(actionsList);
-            card.appendChild(header);
-            card.appendChild(body);
-            return card;
-        }
-
-        function createActionItem(action, fluxoName, index) {
-            const item = document.createElement('div');
-            item.draggable = true;
-            item.dataset.index = index;
-            item.dataset.fluxo = fluxoName;
-
-            let display, cssClass;
-            if (typeof action === 'object' && action !== null) {
-                if (action.delay !== undefined) { display = `⏳ ${action.delay}ms`; cssClass = 'action-delay'; }
-                else if (action.mouse !== undefined) { display = `🖱 ${action.mouse} (${action.x},${action.y})`; cssClass = 'action-mouse'; }
-                else { display = JSON.stringify(action); cssClass = 'action-text'; }
-            } else if (typeof action === 'string') {
-                if (action === 'ITEM_OBRIGATORIO') { display = '{ITEM OBRIGATORIO}'; cssClass = 'action-obrig'; }
-                else if (action === 'ITEM_OPCIONAL') { display = '{ITEM OPCIONAL}'; cssClass = 'action-opcional'; }
-                else if (action.startsWith('VAR_')) { display = `{${action}}`; cssClass = 'action-var'; }
-                else if (['enter','esc','tab','space','backspace','delete','up','down','left','right','f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12'].includes(action.toLowerCase()) || action.length === 1) { display = `⌨ ${action}`; cssClass = 'action-key'; }
-                else { display = `"${action}"`; cssClass = 'action-text'; }
-            } else {
-                display = String(action);
-                cssClass = 'action-text';
-            }
-
-            item.className = `action-item ${cssClass}`;
-            item.innerHTML = `<span>${display}</span><span class="remove-btn" onclick="removeAction('${fluxoName}', ${index})">✕</span>`;
-            item.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', JSON.stringify({ fluxo: fluxoName, index }));
-                item.style.opacity = '0.5';
-            });
-            item.addEventListener('dragend', () => item.style.opacity = '1');
-            return item;
-        }
-
-        function setupDropZone(list) {
-            list.addEventListener('dragover', (e) => { e.preventDefault(); list.classList.add('drag-over'); });
-            list.addEventListener('dragleave', () => list.classList.remove('drag-over'));
-            list.addEventListener('drop', (e) => {
-                e.preventDefault();
-                list.classList.remove('drag-over');
-                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                if (data.fluxo !== list.dataset.fluxo) return;
-                const fromIdx = data.index;
-                const items = [...list.children];
-                let toIdx = items.indexOf(e.target.closest('.action-item'));
-                if (toIdx === -1) toIdx = items.length - 1;
-                if (fromIdx === toIdx) return;
-                updateFluxosFromDOM();
-                const arr = fluxos[list.dataset.fluxo];
-                const [moved] = arr.splice(fromIdx, 1);
-                arr.splice(toIdx > fromIdx ? toIdx : toIdx, 0, moved);
-                renderAll();
-            });
-        }
-
-        function removeAction(fluxoName, index) {
-            updateFluxosFromDOM();
-            fluxos[fluxoName].splice(index, 1);
-            renderAll();
-        }
-
-        function removeFluxo(btn) {
-            const card = btn.closest('.fluxo-card');
-            const name = card.querySelector('.fluxo-name').value;
-            if (confirm(`Remover fluxo "${name}"?`)) {
-                updateFluxosFromDOM();
-                delete fluxos[name];
-                renderAll();
-            }
-        }
-
-        function renameFluxo(input) {
-            updateFluxosFromDOM();
-            const oldName = input.closest('.fluxo-card').dataset.name;
-            const newName = input.value.trim();
-            if (!newName || newName === oldName) { renderAll(); return; }
-            if (fluxos[newName] !== undefined) { alert('Ja existe um fluxo com esse nome!'); renderAll(); return; }
-            fluxos[newName] = fluxos[oldName];
-            delete fluxos[oldName];
-            renderAll();
-        }
-
-        function updateFluxosFromDOM() {
-            document.querySelectorAll('.fluxo-card').forEach(card => {
-                const oldName = card.dataset.name;
-                const newName = card.querySelector('.fluxo-name').value.trim();
-                if (newName && newName !== oldName && fluxos[oldName] !== undefined) {
-                    fluxos[newName] = fluxos[oldName];
-                    delete fluxos[oldName];
-                }
-            });
-        }
-
-        // === RECORDING PANEL ===
-
-        function openRecordingPanel(fluxoName) {
-            targetFluxo = fluxoName;
-            document.getElementById('recordingPanel').classList.add('active');
-            document.getElementById('recordingTarget').textContent = `Fluxo: ${fluxoName}`;
-            recordingQueue = [];
-            renderQueue();
-            renderKeyboard();
-            renderVariables();
-        }
-
-        function closeRecordingPanel() {
-            document.getElementById('recordingPanel').classList.remove('active');
-            targetFluxo = null;
-            if (isKeyRecording) toggleKeyRecording();
-            if (isGlobalCapture) toggleGlobalCapture();
-        }
-
-        function switchTab(btn, tab) {
-            document.querySelectorAll('.recording-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.recording-section').forEach(s => s.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById(`section-${tab}`).classList.add('active');
-        }
-
-        // === QUEUE ===
-
-        function addToQueue(item) {
-            recordingQueue.push(item);
-            renderQueue();
-        }
-
-        function removeFromQueue(idx) {
-            recordingQueue.splice(idx, 1);
-            renderQueue();
-        }
-
-        function clearQueue() {
-            recordingQueue = [];
-            renderQueue();
-        }
-
-        function renderQueue() {
-            const container = document.getElementById('recordingQueue');
-            container.innerHTML = '';
-            recordingQueue.forEach((item, idx) => {
-                const el = document.createElement('span');
-                let display, cssClass;
-                if (typeof item === 'object') {
-                    if (item.delay !== undefined) { display = `⏳ ${item.delay}ms`; cssClass = 'action-delay'; }
-                    else if (item.mouse !== undefined) { display = `🖱 ${item.mouse} (${item.x},${item.y})`; cssClass = 'action-mouse'; }
-                    else { display = JSON.stringify(item); cssClass = 'action-text'; }
-                } else {
-                    if (item === 'ITEM_OBRIGATORIO') { display = '{ITEM OBRIGATORIO}'; cssClass = 'action-obrig'; }
-                    else if (item === 'ITEM_OPCIONAL') { display = '{ITEM OPCIONAL}'; cssClass = 'action-opcional'; }
-                    else if (item.startsWith('VAR_')) { display = `{${item}}`; cssClass = 'action-var'; }
-                    else if (item.length === 1 || ['enter','esc','tab','space','backspace','delete','up','down','left','right','f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12'].includes(item.toLowerCase())) { display = `⌨ ${item}`; cssClass = 'action-key'; }
-                    else { display = `"${item}"`; cssClass = 'action-text'; }
-                }
-                el.className = `action-item ${cssClass}`;
-                el.style.fontSize = '11px';
-                el.style.padding = '4px 8px';
-                el.innerHTML = `<span>${display}</span><span class="remove-btn" onclick="removeFromQueue(${idx})">✕</span>`;
-                container.appendChild(el);
-            });
-        }
-
-        function addQueueToFluxo() {
-            if (recordingQueue.length === 0) { alert('Fila vazia!'); return; }
-            if (!targetFluxo) { alert('Selecione um fluxo!'); return; }
-            updateFluxosFromDOM();
-            fluxos[targetFluxo] = fluxos[targetFluxo].concat(recordingQueue);
-            recordingQueue = [];
-            renderQueue();
-            renderAll();
-            document.getElementById('recordingTarget').textContent = `Fluxo: ${targetFluxo}`;
-        }
-
-        // === KEYBOARD ===
-
-        let isKeyRecording = false;
-
-        const keyboardLayout = [
-            ['esc', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12'],
-            ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'backspace'],
-            ['tab', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\'],
-            ['capslock', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'", 'enter'],
-            ['shiftleft', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 'shiftright'],
-            ['ctrlleft', 'winleft', 'altleft', 'space', 'altright', 'winright', 'ctrlright']
-        ];
-
-        const keyDisplayNames = {
-            'esc': 'ESC', 'backspace': '⌫', 'tab': 'TAB', 'capslock': 'CAPS', 'enter': 'ENTER',
-            'shiftleft': '⇧', 'shiftright': '⇧', 'ctrlleft': 'CTRL', 'ctrlright': 'CTRL',
-            'altleft': 'ALT', 'altright': 'ALT', 'space': 'SPACE', 'winleft': '⊞', 'winright': '⊞',
-            'f1': 'F1', 'f2': 'F2', 'f3': 'F3', 'f4': 'F4', 'f5': 'F5', 'f6': 'F6',
-            'f7': 'F7', 'f8': 'F8', 'f9': 'F9', 'f10': 'F10', 'f11': 'F11', 'f12': 'F12',
-            'up': '↑', 'down': '↓', 'left': '←', 'right': '→'
-        };
-
-        function renderKeyboard() {
-            const layout = document.getElementById('keyboardLayout');
-            layout.innerHTML = '';
-            keyboardLayout.forEach(row => {
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'key-row';
-                row.forEach(key => {
-                    const keyBtn = document.createElement('div');
-                    let cssClass = 'key';
-                    if (key === 'space') cssClass += ' spacebar';
-                    else if (['ctrlleft', 'ctrlright', 'altleft', 'altright', 'shiftright', 'shiftleft', 'winleft', 'winright'].includes(key)) cssClass += ' wide';
-                    else if (['enter', 'backspace', 'capslock', 'tab', 'esc'].includes(key)) cssClass += ' wider';
-                    else if (['f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12'].includes(key)) cssClass += ' special';
-                    keyBtn.className = cssClass;
-                    keyBtn.textContent = keyDisplayNames[key] || key.toUpperCase();
-                    keyBtn.dataset.key = key;
-                    keyBtn.onclick = () => addToQueue(key);
-                    rowDiv.appendChild(keyBtn);
-                });
-                layout.appendChild(rowDiv);
-            });
-            const arrowRow = document.createElement('div');
-            arrowRow.className = 'key-row';
-            arrowRow.style.marginTop = '8px';
-            ['up', 'left', 'down', 'right'].forEach(key => {
-                const keyBtn = document.createElement('div');
-                keyBtn.className = 'key';
-                keyBtn.textContent = keyDisplayNames[key];
-                keyBtn.onclick = () => addToQueue(key);
-                arrowRow.appendChild(keyBtn);
-            });
-            layout.appendChild(arrowRow);
-        }
-
-        function toggleKeyRecording() {
-            isKeyRecording = !isKeyRecording;
-            const btn = document.getElementById('keyRecordBtn');
-            if (isKeyRecording) {
-                btn.classList.add('recording');
-                btn.textContent = '⏹ Parar';
-            } else {
-                btn.classList.remove('recording');
-                btn.textContent = '🎤 Gravar Teclas';
-            }
+        let app = null;
+        try {
+            const { App } = require('./dist/App');
+            app = new App();
+            app.init().catch(err => showFatalError(err));
+        } catch (err) {
+            showFatalError(err);
         }
 
         document.addEventListener('keydown', (e) => {
-            if (!isKeyRecording) return;
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            e.preventDefault();
-            let key = e.key.toLowerCase();
-            const keyMap = {
-                'arrowup': 'up', 'arrowdown': 'down', 'arrowleft': 'left', 'arrowright': 'right',
-                'escape': 'esc', ' ': 'space', 'backspace': 'backspace', 'tab': 'tab',
-                'capslock': 'capslock', 'enter': 'enter',
-                'shift': 'shiftleft', 'control': 'ctrlleft', 'alt': 'altleft', 'meta': 'winleft',
-                'f1': 'f1', 'f2': 'f2', 'f3': 'f3', 'f4': 'f4', 'f5': 'f5', 'f6': 'f6',
-                'f7': 'f7', 'f8': 'f8', 'f9': 'f9', 'f10': 'f10', 'f11': 'f11', 'f12': 'f12'
-            };
-            key = keyMap[key] || key;
-            const keyEl = document.querySelector(`.key[data-key="${key}"]`);
-            if (keyEl) {
-                keyEl.style.background = '#6c5ce7';
-                setTimeout(() => keyEl.style.background = '', 150);
-            }
-            addToQueue(key);
-        });
-
-        // === MOUSE ===
-
-        let isGlobalCapture = false;
-
-        function addMouseAction(type) {
-            const x = parseInt(document.getElementById('mouseX').value) || 0;
-            const y = parseInt(document.getElementById('mouseY').value) || 0;
-            addToQueue({ mouse: type, x, y });
-        }
-
-        async function toggleGlobalCapture() {
-            isGlobalCapture = !isGlobalCapture;
-            const btn = document.getElementById('captureBtn');
-            const status = document.getElementById('captureStatus');
-            if (isGlobalCapture) {
-                await ipcRenderer.invoke('register-capture-shortcut', 'CommandOrControl+Shift+C');
-                btn.classList.add('recording');
-                btn.textContent = '⏹ Parar Captura';
-                status.textContent = 'Captura ativa - Ctrl+Shift+C em qualquer tela';
-                status.style.color = '#fd79a8';
-            } else {
-                await ipcRenderer.invoke('unregister-capture-shortcut');
-                btn.classList.remove('recording');
-                btn.textContent = '🎯 Capturar Fora do App';
-                status.textContent = 'Atalho: Ctrl+Shift+C';
-                status.style.color = '#888';
-            }
-        }
-
-        ipcRenderer.on('mouse-captured', (event, pos) => {
-            document.getElementById('mouseX').value = pos.x;
-            document.getElementById('mouseY').value = pos.y;
-            document.getElementById('mousePosDisplay').textContent = `${pos.x}, ${pos.y}`;
-            addToQueue({ mouse: 'click', x: pos.x, y: pos.y });
-            const dot = document.createElement('div');
-            dot.style.cssText = `position:fixed;left:${pos.x-5}px;top:${pos.y-5}px;width:10px;height:10px;background:#00b894;border-radius:50%;pointer-events:none;z-index:99999;box-shadow:0 0 10px #00b894;`;
-            document.body.appendChild(dot);
-            setTimeout(() => dot.remove(), 800);
-        });
-
-        // === VARIABLES (old simple vars) ===
-
-        function addVariable() {
-            const input = document.getElementById('newVarName');
-            const name = input.value.trim().toUpperCase();
-            if (!name) return;
-            if (variables.includes(name)) { alert('Variavel ja existe!'); return; }
-            variables.push(name);
-            input.value = '';
-            renderVariables();
-            saveToStorage();
-        }
-
-        function removeVariable(name) {
-            variables = variables.filter(v => v !== name);
-            renderVariables();
-            saveToStorage();
-        }
-
-        function renderVariables() {
-            const container = document.getElementById('varsList');
-            if (!container) return;
-            container.innerHTML = '';
-
-            // ITEM_OBRIGATORIO tag
-            const tagObrig = document.createElement('span');
-            tagObrig.className = 'var-tag var-tag-obrig';
-            tagObrig.textContent = '{ITEM_OBRIGATORIO}';
-            tagObrig.onclick = () => addToQueue('ITEM_OBRIGATORIO');
-            container.appendChild(tagObrig);
-
-            // ITEM_OPCIONAL tag (only if optionals configured)
-            if (varConfig.opcionais.length > 0) {
-                const tagOpc = document.createElement('span');
-                tagOpc.className = 'var-tag var-tag-opcional';
-                tagOpc.textContent = '{ITEM OPCIONAL}';
-                tagOpc.onclick = () => addToQueue('ITEM_OPCIONAL');
-                container.appendChild(tagOpc);
-            }
-
-            // Old-style variables
-            variables.forEach(v => {
-                const tag = document.createElement('span');
-                tag.className = 'var-tag';
-                tag.innerHTML = `{${v}} <span class="var-remove" onclick="event.stopPropagation(); removeVariable('${v}')">✕</span>`;
-                tag.onclick = () => addToQueue(v);
-                container.appendChild(tag);
-            });
-        }
-
-        // === DELAY ===
-
-        function addDelayAction() {
-            const ms = parseInt(document.getElementById('delayValue').value) || 0;
-            addToQueue({ delay: ms });
-        }
-
-        function addDelayPreset(ms) {
-            document.getElementById('delayValue').value = ms;
-            addToQueue({ delay: ms });
-        }
-
-        // === TEXT ===
-
-        function addTextAction() {
-            const text = document.getElementById('textValue').value.trim();
-            if (!text) return;
-            addToQueue(text);
-            document.getElementById('textValue').value = '';
-        }
-
-        // === STORAGE ===
-
-        function saveToStorage() {
-            localStorage.setItem('fluxos_editor_data', JSON.stringify(fluxos));
-            localStorage.setItem('fluxos_editor_vars', JSON.stringify(variables));
-            localStorage.setItem('fluxos_var_config', JSON.stringify(varConfig));
-        }
-
-        function loadFromStorage() {
-            const data = localStorage.getItem('fluxos_editor_data');
-            const vars = localStorage.getItem('fluxos_editor_vars');
-            const vc = localStorage.getItem('fluxos_var_config');
-            if (vars) { try { variables = JSON.parse(vars); } catch(e) {} }
-            if (vc) { try { varConfig = JSON.parse(vc); } catch(e) {} }
-            if (data) {
-                try {
-                    fluxos = JSON.parse(data);
-                    renderAll();
-                    return true;
-                } catch(e) {}
-            }
-            return false;
-        }
-
-        const observer = new MutationObserver(() => { saveToStorage(); });
-        observer.observe(document.getElementById('fluxosGrid'), { childList: true, subtree: true, attributes: true });
-
-        loadFromStorage();
-
-        // === CUSTOM MODAL PROMPT ===
-
-        function customPrompt(title, defaultValue) {
-            return new Promise((resolve) => {
-                const overlay = document.createElement('div');
-                overlay.className = 'modal-overlay';
-                overlay.innerHTML = `
-                    <div class="modal-box">
-                        <h3>${title}</h3>
-                        <input type="text" id="modalInput" value="${defaultValue || ''}" />
-                        <div class="modal-actions">
-                            <button class="btn btn-outline btn-sm" id="modalCancel">Cancelar</button>
-                            <button class="btn btn-success btn-sm" id="modalOk">OK</button>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(overlay);
-                const input = document.getElementById('modalInput');
-                input.focus();
-                input.select();
-                function close(value) { overlay.remove(); resolve(value); }
-                document.getElementById('modalOk').onclick = () => close(input.value);
-                document.getElementById('modalCancel').onclick = () => close(null);
-                input.onkeydown = (e) => {
-                    if (e.key === 'Enter') close(input.value);
-                    if (e.key === 'Escape') close(null);
-                };
-                overlay.onclick = (e) => { if (e.target === overlay) close(null); };
-            });
-        }
-
-        // === VAR CONFIG MODAL ===
-
-        function openVarConfig() {
-            const overlay = document.createElement('div');
-            overlay.className = 'modal-fullscreen';
-            overlay.id = 'varConfigModal';
-            overlay.innerHTML = `
-                <div class="modal-fullscreen-header">
-                    <h2>⚙ Configuracao de Variaveis</h2>
-                    <button class="btn btn-outline btn-sm" onclick="closeVarConfig()">✕ Fechar</button>
-                </div>
-                <div style="max-width:900px; margin:0 auto;">
-                    <div class="section-title">Variaveis Obrigatórias (valor fixo, quota de execucoes)</div>
-                    <div id="obrigTable"></div>
-                    <div class="config-row" style="margin-top:8px;">
-                        <input type="text" id="obrigNome" placeholder="Nome" style="width:150px;" />
-                        <input type="text" id="obrigValor" placeholder="Valor para digitar" style="width:200px;" />
-                        <input type="number" id="obrigQuota" placeholder="Quota" value="1" min="1" style="width:80px;" />
-                        <button class="btn btn-primary btn-sm" onclick="addObrigatoria()">+ Adicionar</button>
-                    </div>
-
-                    <div class="section-title" style="margin-top:24px;">Pool de Opcionais (valor fixo, selecionados aleatoriamente sem repeticao)</div>
-                    <div id="opcionalTable"></div>
-                    <div class="config-row" style="margin-top:8px;">
-                        <input type="text" id="opcNome" placeholder="Nome" style="width:150px;" />
-                        <input type="text" id="opcValor" placeholder="Valor para digitar" style="width:200px;" />
-                        <button class="btn btn-primary btn-sm" onclick="addOpcional()">+ Adicionar</button>
-                    </div>
-
-                    <div class="modal-actions" style="margin-top:24px;">
-                        <button class="btn btn-success" onclick="saveVarConfig()">💾 Salvar</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            renderVarConfigTables();
-        }
-
-        function closeVarConfig() {
-            const m = document.getElementById('varConfigModal');
-            if (m) m.remove();
-        }
-
-        function renderVarConfigTables() {
-            // Obrigatorias
-            const ot = document.getElementById('obrigTable');
-            ot.innerHTML = '';
-            if (varConfig.obrigatorias.length === 0) {
-                ot.innerHTML = '<div class="empty-state">Nenhuma variavel obrigatoria configurada</div>';
-            } else {
-                let html = '<table class="data-table"><thead><tr><th>Nome</th><th>Valor</th><th>Quota</th><th></th></tr></thead><tbody>';
-                varConfig.obrigatorias.forEach((item, i) => {
-                    html += `<tr>
-                        <td><input value="${item.nome}" onchange="varConfig.obrigatorias[${i}].nome=this.value" /></td>
-                        <td><input value="${item.valor}" onchange="varConfig.obrigatorias[${i}].valor=this.value" /></td>
-                        <td><input type="number" value="${item.quota}" min="1" style="width:60px;" onchange="varConfig.obrigatorias[${i}].quota=parseInt(this.value)" /></td>
-                        <td><button class="btn btn-danger btn-sm" onclick="removeObrigatoria(${i})">✕</button></td>
-                    </tr>`;
-                });
-                html += '</tbody></table>';
-                ot.innerHTML = html;
-            }
-
-            // Opcionais
-            const pt = document.getElementById('opcionalTable');
-            pt.innerHTML = '';
-            if (varConfig.opcionais.length === 0) {
-                pt.innerHTML = '<div class="empty-state">Nenhum opcional configurado</div>';
-            } else {
-                let html = '<table class="data-table"><thead><tr><th>Nome</th><th>Valor</th><th></th></tr></thead><tbody>';
-                varConfig.opcionais.forEach((item, i) => {
-                    html += `<tr>
-                        <td><input value="${item.nome}" onchange="varConfig.opcionais[${i}].nome=this.value" /></td>
-                        <td><input value="${item.valor}" onchange="varConfig.opcionais[${i}].valor=this.value" /></td>
-                        <td><button class="btn btn-danger btn-sm" onclick="removeOpcional(${i})">✕</button></td>
-                    </tr>`;
-                });
-                html += '</tbody></table>';
-                pt.innerHTML = html;
-            }
-        }
-
-        function addObrigatoria() {
-            const nome = document.getElementById('obrigNome').value.trim();
-            const valor = document.getElementById('obrigValor').value.trim();
-            const quota = parseInt(document.getElementById('obrigQuota').value) || 1;
-            if (!nome || !valor) { alert('Preencha nome e valor!'); return; }
-            varConfig.obrigatorias.push({ nome, valor, quota });
-            document.getElementById('obrigNome').value = '';
-            document.getElementById('obrigValor').value = '';
-            document.getElementById('obrigQuota').value = '1';
-            renderVarConfigTables();
-        }
-
-        function removeObrigatoria(i) {
-            varConfig.obrigatorias.splice(i, 1);
-            renderVarConfigTables();
-        }
-
-        function addOpcional() {
-            const nome = document.getElementById('opcNome').value.trim();
-            const valor = document.getElementById('opcValor').value.trim();
-            if (!nome || !valor) { alert('Preencha nome e valor!'); return; }
-            varConfig.opcionais.push({ nome, valor });
-            document.getElementById('opcNome').value = '';
-            document.getElementById('opcValor').value = '';
-            renderVarConfigTables();
-        }
-
-        function removeOpcional(i) {
-            varConfig.opcionais.splice(i, 1);
-            renderVarConfigTables();
-        }
-
-        function saveVarConfig() {
-            saveToStorage();
-            closeVarConfig();
-            renderVariables();
-            showToast('Configuracao de variaveis salva!', 'success');
-        }
-
-        // === EXECUTION ORDER GENERATOR ===
-
-        function generateExecutionOrder(template, config, count, date, timeStart, timeEnd) {
-            const [sh, sm] = timeStart.split(':').map(Number);
-            const [eh, em] = timeEnd.split(':').map(Number);
-            const startMin = sh * 60 + sm;
-            const endMin = eh * 60 + em;
-
-            // Build obrigatory queue
-            const obrigQueue = [];
-            config.obrigatorias.forEach(item => {
-                for (let i = 0; i < item.quota; i++) obrigQueue.push(item.valor);
-            });
-
-            // Shuffle optionals pool
-            const poolOpcionais = [...config.opcionais].sort(() => Math.random() - 0.5);
-
-            const order = [];
-            for (let i = 0; i < count; i++) {
-                // Random timestamp within interval
-                const randMin = startMin + Math.floor(Math.random() * (endMin - startMin));
-                const randSec = Math.floor(Math.random() * 60);
-                const ts = new Date(date);
-                ts.setHours(Math.floor(randMin / 60), randMin % 60, randSec);
-
-                // Resolve template
-                const resolved = template.map(action => {
-                    if (action === 'ITEM_OBRIGATORIO') {
-                        if (obrigQueue.length === 0) return '[SEM OBRIGATORIO]';
-                        return obrigQueue.shift();
-                    }
-                    if (typeof action === 'string' && action.startsWith('ITEM_OPCIONAL')) {
-                        if (poolOpcionais.length === 0) {
-                            // Restart pool
-                            poolOpcionais.push(...config.opcionais.sort(() => Math.random() - 0.5));
-                        }
-                        return poolOpcionais.shift().valor;
-                    }
-                    // For mouse actions, return as object
-                    if (typeof action === 'object' && action !== null) return action;
-                    return action;
-                });
-
-                order.push({
-                    id: i + 1,
-                    gatilho_timeStamp: ts.getTime(),
-                    status: 'pending',
-                    resolvedActions: resolved
-                });
-            }
-
-            // Sort by timestamp
-            order.sort((a, b) => a.gatilho_timeStamp - b.gatilho_timeStamp);
-            // Re-number
-            order.forEach((o, i) => o.id = i + 1);
-            return order;
-        }
-
-        // === SCHEDULES MODAL ===
-
-        function openSchedules() {
-            const overlay = document.createElement('div');
-            overlay.className = 'modal-fullscreen';
-            overlay.id = 'schedulesModal';
-            overlay.innerHTML = `
-                <div class="modal-fullscreen-header">
-                    <h2>📅 Agendamentos</h2>
-                    <button class="btn btn-primary btn-sm" onclick="openNewSchedule()">+ Novo Agendamento</button>
-                    <button class="btn btn-outline btn-sm" onclick="closeSchedules()">✕ Fechar</button>
-                </div>
-                <div id="schedulesList" style="max-width:900px; margin:0 auto;"></div>
-            `;
-            document.body.appendChild(overlay);
-            loadSchedulesAndRender();
-        }
-
-        function closeSchedules() {
-            const m = document.getElementById('schedulesModal');
-            if (m) m.remove();
-        }
-
-        async function loadSchedulesAndRender() {
-            schedules = await ipcRenderer.invoke('get-schedules');
-            renderSchedulesList();
-        }
-
-        function renderSchedulesList() {
-            const container = document.getElementById('schedulesList');
-            if (!container) return;
-            if (schedules.length === 0) {
-                container.innerHTML = '<div class="empty-state">Nenhum agendamento criado</div>';
-                return;
-            }
-            container.innerHTML = '';
-            schedules.forEach((sch, i) => {
-                const card = document.createElement('div');
-                card.className = 'schedule-card';
-                const completed = sch.executionOrder.filter(e => e.status === 'completed').length;
-                const total = sch.executionOrder.length;
-                const nextPending = sch.executionOrder.find(e => e.status === 'pending');
-                const nextTime = nextPending ? new Date(nextPending.gatilho_timeStamp).toLocaleString('pt-BR') : '---';
-                const modeLabel = sch.mode === 'recurring' ? `Recorrente (${(sch.days||[]).map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'][d]).join(', ')})` : `Unico (${sch.date})`;
-
-                card.innerHTML = `
-                    <div class="schedule-card-header">
-                        <h4>${sch.flowName}</h4>
-                        <label class="toggle">
-                            <input type="checkbox" ${sch.active ? 'checked' : ''} onchange="toggleScheduleActive(${i}, this.checked)" />
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <button class="btn btn-outline btn-sm" onclick="openExecutionOrder(${i})">📋 Ordem</button>
-                        <button class="btn btn-danger btn-sm" onclick="removeSchedule(${i})">✕</button>
-                    </div>
-                    <div class="schedule-card-meta">
-                        <span>🔁 ${modeLabel}</span>
-                        <span>⏰ ${sch.timeStart} - ${sch.timeEnd}</span>
-                        <span>📊 ${completed}/${total} executados</span>
-                        <span>⏭ Proximo: ${nextTime}</span>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function toggleScheduleActive(idx, checked) {
-            schedules[idx].active = checked;
-            ipcRenderer.invoke('save-schedules', schedules);
-            showToast(checked ? 'Agendamento ativado' : 'Agendamento pausado', 'info');
-        }
-
-        function removeSchedule(idx) {
-            if (!confirm('Remover este agendamento?')) return;
-            schedules.splice(idx, 1);
-            ipcRenderer.invoke('save-schedules', schedules);
-            renderSchedulesList();
-            showToast('Agendamento removido', 'info');
-        }
-
-        // === NEW SCHEDULE ===
-
-        function openNewSchedule() {
-            const flowNames = Object.keys(fluxos);
-            if (flowNames.length === 0) { alert('Crie pelo menos um fluxo primeiro!'); return; }
-
-            const overlay = document.createElement('div');
-            overlay.className = 'modal-fullscreen';
-            overlay.id = 'newScheduleModal';
-
-            const flowOptions = flowNames.map(n => `<option value="${n}">${n}</option>`).join('');
-
-            overlay.innerHTML = `
-                <div class="modal-fullscreen-header">
-                    <h2>+ Novo Agendamento</h2>
-                    <button class="btn btn-outline btn-sm" onclick="closeNewSchedule()">✕ Voltar</button>
-                </div>
-                <div style="max-width:600px; margin:0 auto;">
-                    <div class="section-title">Fluxo</div>
-                    <select id="schFlow" style="width:100%; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:8px; font-size:14px;">${flowOptions}</select>
-
-                    <div class="section-title">Modo</div>
-                    <div style="display:flex; gap:8px;">
-                        <button class="btn btn-primary btn-sm" id="modeOneShot" onclick="setScheduleMode('one-shot')">Agendamento Unico</button>
-                        <button class="btn btn-outline btn-sm" id="modeRecurring" onclick="setScheduleMode('recurring')">Recorrencia Semanal</button>
-                    </div>
-
-                    <div id="modeOneShotFields">
-                        <div class="section-title">Data e Horario</div>
-                        <div class="config-row">
-                            <label style="color:#aaa; font-size:13px;">Data:</label>
-                            <input type="date" id="schDate" />
-                            <label style="color:#aaa; font-size:13px;">Inicio:</label>
-                            <input type="time" id="schTimeStart" value="07:00" />
-                            <label style="color:#aaa; font-size:13px;">Fim:</label>
-                            <input type="time" id="schTimeEnd" value="08:00" />
-                        </div>
-                    </div>
-
-                    <div id="modeRecurringFields" style="display:none;">
-                        <div class="section-title">Dias da Semana</div>
-                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                            ${[1,2,3,4,5,6,0].map(d => `
-                                <label style="display:flex; align-items:center; gap:4px; color:#aaa; font-size:13px; cursor:pointer;">
-                                    <input type="checkbox" class="sch-day" value="${d}" />
-                                    ${['Dom','Seg','Ter','Qua','Qui','Sex','Sab'][d]}
-                                </label>
-                            `).join('')}
-                        </div>
-                        <div class="section-title">Intervalo de Horario</div>
-                        <div class="config-row">
-                            <label style="color:#aaa; font-size:13px;">Inicio:</label>
-                            <input type="time" id="schTimeStartR" value="07:00" />
-                            <label style="color:#aaa; font-size:13px;">Fim:</label>
-                            <input type="time" id="schTimeEndR" value="08:00" />
-                        </div>
-                    </div>
-
-                    <div class="section-title">Numero de Execucoes</div>
-                    <div class="config-row">
-                        <input type="number" id="schCount" value="5" min="1" max="100" style="width:80px;" />
-                        <span style="color:#888; font-size:13px;">vezes</span>
-                    </div>
-
-                    <div style="margin-top:24px;">
-                        <button class="btn btn-success" onclick="previewSchedule()">👁 Gerar Ordem de Execucao</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            window._scheduleMode = 'one-shot';
-            document.getElementById('schDate').value = new Date().toISOString().split('T')[0];
-        }
-
-        function closeNewSchedule() {
-            const m = document.getElementById('newScheduleModal');
-            if (m) m.remove();
-        }
-
-        function setScheduleMode(mode) {
-            window._scheduleMode = mode;
-            document.getElementById('modeOneShot').className = mode === 'one-shot' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
-            document.getElementById('modeRecurring').className = mode === 'recurring' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
-            document.getElementById('modeOneShotFields').style.display = mode === 'one-shot' ? 'block' : 'none';
-            document.getElementById('modeRecurringFields').style.display = mode === 'recurring' ? 'block' : 'none';
-        }
-
-        function previewSchedule() {
-            const flowName = document.getElementById('schFlow').value;
-            const template = fluxos[flowName];
-            const count = parseInt(document.getElementById('schCount').value) || 1;
-
-            if (!template || template.length === 0) { alert('Fluxo vazio!'); return; }
-            if (varConfig.obrigatorias.length === 0 && template.some(a => a === 'ITEM_OBRIGATORIO')) {
-                alert('Configure variaveis obrigatorias primeiro! (⚙ Config Variaveis)');
-                return;
-            }
-
-            let date, timeStart, timeEnd;
-
-            if (window._scheduleMode === 'one-shot') {
-                date = document.getElementById('schDate').value;
-                timeStart = document.getElementById('schTimeStart').value;
-                timeEnd = document.getElementById('schTimeEnd').value;
-            } else {
-                date = new Date().toISOString().split('T')[0];
-                timeStart = document.getElementById('schTimeStartR').value;
-                timeEnd = document.getElementById('schTimeEndR').value;
-            }
-
-            if (!date || !timeStart || !timeEnd) { alert('Preencha todos os campos!'); return; }
-            if (timeStart >= timeEnd) { alert('Horario de inicio deve ser antes do fim!'); return; }
-
-            const order = generateExecutionOrder(template, varConfig, count, date, timeStart, timeEnd);
-
-            closeNewSchedule();
-            openExecutionOrderPreview(flowName, order);
-        }
-
-        // === EXECUTION ORDER PREVIEW (EDITABLE) ===
-
-        let _pendingScheduleOrder = null;
-        let _pendingScheduleFlow = null;
-
-        function openExecutionOrderPreview(flowName, order) {
-            _pendingScheduleOrder = order;
-            _pendingScheduleFlow = flowName;
-
-            const overlay = document.createElement('div');
-            overlay.className = 'modal-fullscreen';
-            overlay.id = 'execOrderPreviewModal';
-            overlay.innerHTML = `
-                <div class="modal-fullscreen-header">
-                    <h2>📋 Ordem de Execucao - ${flowName}</h2>
-                    <button class="btn btn-success btn-sm" onclick="confirmSchedule()">✅ Confirmar e Ativar</button>
-                    <button class="btn btn-outline btn-sm" onclick="closeExecOrderPreview()">✕ Cancelar</button>
-                </div>
-                <div id="execOrderTable" style="max-width:900px; margin:0 auto;"></div>
-            `;
-            document.body.appendChild(overlay);
-            renderExecOrderTable();
-        }
-
-        function closeExecOrderPreview() {
-            const m = document.getElementById('execOrderPreviewModal');
-            if (m) m.remove();
-            _pendingScheduleOrder = null;
-            _pendingScheduleFlow = null;
-        }
-
-        function renderExecOrderTable() {
-            const container = document.getElementById('execOrderTable');
-            if (!container || !_pendingScheduleOrder) return;
-
-            let html = '<table class="data-table"><thead><tr><th>#</th><th>Horario</th><th>Acoes Resolvidas</th><th></th></tr></thead><tbody>';
-            _pendingScheduleOrder.forEach((inst, i) => {
-                const dt = new Date(inst.gatilho_timeStamp);
-                const timeStr = dt.toLocaleString('pt-BR');
-                const actionsStr = inst.resolvedActions.map(a => {
-                    if (typeof a === 'object' && a !== null) {
-                        if (a.mouse !== undefined) return `🖱${a.mouse}(${a.x},${a.y})`;
-                        if (a.delay !== undefined) return `⏳${a.delay}ms`;
-                        return JSON.stringify(a);
-                    }
-                    return a;
-                }).join(', ');
-
-                html += `<tr>
-                    <td>${inst.id}</td>
-                    <td><input type="datetime-local" value="${dt.toISOString().slice(0,16)}" onchange="updateExecOrderTime(${i}, this.value)" style="width:200px;" /></td>
-                    <td style="font-family:Consolas,monospace; font-size:12px; color:#a29bfe;">${actionsStr}</td>
-                    <td><button class="btn btn-danger btn-sm" onclick="removeExecOrderItem(${i})">✕</button></td>
-                </tr>`;
-            });
-            html += '</tbody></table>';
-            container.innerHTML = html;
-        }
-
-        function updateExecOrderTime(idx, value) {
-            _pendingScheduleOrder[idx].gatilho_timeStamp = new Date(value).getTime();
-        }
-
-        function removeExecOrderItem(idx) {
-            _pendingScheduleOrder.splice(idx, 1);
-            _pendingScheduleOrder.forEach((o, i) => o.id = i + 1);
-            renderExecOrderTable();
-        }
-
-        function confirmSchedule() {
-            if (!_pendingScheduleOrder || _pendingScheduleOrder.length === 0) { alert('Ordem vazia!'); return; }
-
-            const mode = window._scheduleMode || 'one-shot';
-            let schedule = {
-                id: 'sch_' + Date.now(),
-                flowName: _pendingScheduleFlow,
-                mode: mode,
-                active: true,
-                executionOrder: _pendingScheduleOrder
-            };
-
-            if (mode === 'one-shot') {
-                const dt = new Date(_pendingScheduleOrder[0].gatilho_timeStamp);
-                schedule.date = dt.toISOString().split('T')[0];
-                schedule.timeStart = '07:00';
-                schedule.timeEnd = '08:00';
-            } else {
-                const days = [...document.querySelectorAll('.sch-day:checked')].map(c => parseInt(c.value));
-                schedule.days = days;
-                schedule.timeStart = document.getElementById('schTimeStartR')?.value || '07:00';
-                schedule.timeEnd = document.getElementById('schTimeEndR')?.value || '08:00';
-            }
-
-            schedules.push(schedule);
-            ipcRenderer.invoke('save-schedules', schedules);
-
-            closeExecOrderPreview();
-            openSchedules();
-            showToast(`Agendamento criado com ${_pendingScheduleOrder.length} execucoes!`, 'success');
-
-            _pendingScheduleOrder = null;
-            _pendingScheduleFlow = null;
-        }
-
-        // === EXISTING SCHEDULE ORDER VIEW ===
-
-        function openExecutionOrder(schIdx) {
-            const sch = schedules[schIdx];
-            if (!sch) return;
-
-            _pendingScheduleOrder = sch.executionOrder;
-            _pendingScheduleFlow = sch.flowName;
-
-            const overlay = document.createElement('div');
-            overlay.className = 'modal-fullscreen';
-            overlay.id = 'execOrderPreviewModal';
-            overlay.innerHTML = `
-                <div class="modal-fullscreen-header">
-                    <h2>📋 Ordem de Execucao - ${sch.flowName}</h2>
-                    <button class="btn btn-success btn-sm" onclick="saveExistingOrder(${schIdx})">💾 Salvar</button>
-                    <button class="btn btn-outline btn-sm" onclick="closeExecOrderPreview()">✕ Fechar</button>
-                </div>
-                <div id="execOrderTable" style="max-width:900px; margin:0 auto;"></div>
-            `;
-            document.body.appendChild(overlay);
-            renderExecOrderTableView();
-        }
-
-        function renderExecOrderTableView() {
-            const container = document.getElementById('execOrderTable');
-            if (!container || !_pendingScheduleOrder) return;
-
-            const statusLabels = { pending: '⏳ Pendente', running: '🔄 Executando', completed: '✅ Concluido', failed: '❌ Falhou' };
-
-            let html = '<table class="data-table"><thead><tr><th>#</th><th>Horario</th><th>Acoes Resolvidas</th><th>Status</th><th></th></tr></thead><tbody>';
-            _pendingScheduleOrder.forEach((inst, i) => {
-                const dt = new Date(inst.gatilho_timeStamp);
-                const timeStr = dt.toLocaleString('pt-BR');
-                const actionsStr = inst.resolvedActions.map(a => {
-                    if (typeof a === 'object' && a !== null) {
-                        if (a.mouse !== undefined) return `🖱${a.mouse}(${a.x},${a.y})`;
-                        if (a.delay !== undefined) return `⏳${a.delay}ms`;
-                        return JSON.stringify(a);
-                    }
-                    return a;
-                }).join(', ');
-
-                const statusClass = `status-${inst.status}`;
-
-                html += `<tr>
-                    <td>${inst.id}</td>
-                    <td>${timeStr}</td>
-                    <td style="font-family:Consolas,monospace; font-size:11px; color:#a29bfe; max-width:400px; overflow:hidden; text-overflow:ellipsis;">${actionsStr}</td>
-                    <td class="${statusClass}">${statusLabels[inst.status] || inst.status}</td>
-                    <td><button class="btn btn-danger btn-sm" onclick="removeExecOrderItem(${i})" ${inst.status !== 'pending' ? 'disabled' : ''}>✕</button></td>
-                </tr>`;
-            });
-            html += '</tbody></table>';
-            container.innerHTML = html;
-        }
-
-        function saveExistingOrder(schIdx) {
-            schedules[schIdx].executionOrder = _pendingScheduleOrder;
-            ipcRenderer.invoke('save-schedules', schedules);
-            closeExecOrderPreview();
-            renderSchedulesList();
-            showToast('Ordem de execucao salva!', 'success');
-            _pendingScheduleOrder = null;
-            _pendingScheduleFlow = null;
-        }
-
-        // === EXECUTION (Manual + Scheduled) ===
-
-        let isRunning = false;
-        let shouldStop = false;
-
-        // Runtime state for resolving placeholders in manual execution
-        let runtimeObrigIndex = 0;
-        let runtimeObrigCount = 0;
-        let runtimePoolOpcionais = [];
-
-        function resetRuntimeState() {
-            runtimeObrigIndex = 0;
-            runtimeObrigCount = 0;
-            runtimePoolOpcionais = [...varConfig.opcionais].sort(() => Math.random() - 0.5);
-        }
-
-        async function executeFlow(flowName) {
-            if (isRunning) { alert('Ja existe um fluxo em execucao!'); return; }
-            const actions = fluxos[flowName];
-            if (!actions || actions.length === 0) { alert('Fluxo vazio!'); return; }
-
-            isRunning = true;
-            shouldStop = false;
-            resetRuntimeState();
-
-            const cards = document.querySelectorAll('.fluxo-card');
-            cards.forEach(card => {
-                if (card.dataset.name === flowName) {
-                    card.style.border = '2px solid #00b894';
-                    const runBtn = card.querySelector('.btn-success');
-                    if (runBtn) { runBtn.textContent = '⏹ Parar'; runBtn.onclick = () => { shouldStop = true; }; }
-                }
-            });
-
-            await executeActionList(flowName, actions);
-
-            isRunning = false;
-            cards.forEach(card => {
-                if (card.dataset.name === flowName) {
-                    card.style.border = '';
-                    const runBtn = card.querySelector('.btn-success');
-                    if (runBtn) { runBtn.textContent = '▶ Executar'; runBtn.onclick = () => executeFlow(flowName); }
-                }
-            });
-        }
-
-        async function executeActionList(flowName, actions) {
-            for (let i = 0; i < actions.length; i++) {
-                if (shouldStop) break;
-                const action = actions[i];
-                highlightAction(flowName, i, true);
-
-                try {
-                    if (action === 'ITEM_OBRIGATORIO') {
-                        // Resolve from obrigatory queue
-                        let value = null;
-                        while (runtimeObrigIndex < varConfig.obrigatorias.length) {
-                            const item = varConfig.obrigatorias[runtimeObrigIndex];
-                            if (runtimeObrigCount < item.quota) {
-                                value = item.valor;
-                                runtimeObrigCount++;
-                                break;
-                            }
-                            runtimeObrigIndex++;
-                            runtimeObrigCount = 0;
-                        }
-                        if (value === null) {
-                            showToast('Sem mais itens obrigatorios disponiveis!', 'error');
-                            shouldStop = true;
-                            break;
-                        }
-                        for (const char of value) {
-                            await ipcRenderer.invoke('execute-action', char);
-                            await sleep(30);
-                        }
-                    } else if (action === 'ITEM_OPCIONAL') {
-                        // Resolve from optionals pool
-                        if (runtimePoolOpcionais.length === 0) {
-                            runtimePoolOpcionais = [...varConfig.opcionais].sort(() => Math.random() - 0.5);
-                        }
-                        const item = runtimePoolOpcionais.shift();
-                        for (const char of item.valor) {
-                            await ipcRenderer.invoke('execute-action', char);
-                            await sleep(30);
-                        }
-                    } else if (typeof action === 'object' && action !== null) {
-                        await ipcRenderer.invoke('execute-action', action);
-                    } else if (typeof action === 'string' && action.length === 1) {
-                        await ipcRenderer.invoke('execute-action', action);
-                    } else {
-                        await ipcRenderer.invoke('execute-action', action);
-                    }
-                } catch (e) {
-                    console.error('Erro na execucao:', e);
-                }
-
-                highlightAction(flowName, i, false);
-                await sleep(50);
-            }
-        }
-
-        function highlightAction(flowName, index, highlight) {
-            const cards = document.querySelectorAll('.fluxo-card');
-            cards.forEach(card => {
-                if (card.dataset.name === flowName) {
-                    const items = card.querySelectorAll('.action-item');
-                    if (items[index]) {
-                        items[index].style.outline = highlight ? '2px solid #00b894' : '';
-                        items[index].style.zIndex = highlight ? '10' : '';
-                        if (highlight) items[index].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
-                }
-            });
-        }
-
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
-        // === SCHEDULED EXECUTION ===
-
-        ipcRenderer.on('execute-scheduled', async (event, data) => {
-            const { scheduleId, instanceId, resolvedActions, flowName } = data;
-            showToast(`▶ Executando agendamento: ${flowName} #${instanceId}`, 'info');
-
-            try {
-                for (let i = 0; i < resolvedActions.length; i++) {
-                    const action = resolvedActions[i];
-                    try {
-                        if (typeof action === 'object' && action !== null) {
-                            await ipcRenderer.invoke('execute-action', action);
-                        } else if (typeof action === 'string' && action.length === 1) {
-                            await ipcRenderer.invoke('execute-action', action);
-                        } else {
-                            await ipcRenderer.invoke('execute-action', action);
-                        }
-                    } catch (e) {
-                        console.error('Erro na execucao agendada:', e);
-                    }
-                    await sleep(50);
-                }
-
-                await ipcRenderer.invoke('update-instance-status', { scheduleId, instanceId, status: 'completed' });
-                showToast(`✅ ${flowName} #${instanceId} concluido!`, 'success');
-            } catch (e) {
-                await ipcRenderer.invoke('update-instance-status', { scheduleId, instanceId, status: 'failed' });
-                showToast(`❌ ${flowName} #${instanceId} falhou!`, 'error');
-            }
+            const tag = e.target && e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); app.undo(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); app.redo(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); app.redo(); }
         });
     </script>
 </body>

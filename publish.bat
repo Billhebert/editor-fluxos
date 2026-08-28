@@ -13,38 +13,80 @@ if "%MSG%"=="" (
     exit /b 1
 )
 
+:: Pega versao atual do package.json
+cd /d "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos"
+for /f "tokens=2 delims=:, " %%a in ('findstr "version" package.json') do (
+    set VERSION=%%~a
+)
+set VERSION=%VERSION:"=%
+set VERSION=%VERSION: =%
+echo Versao atual: %VERSION%
 echo.
-echo [1/4] Commitando mudancas no DEV...
+
+set /p BUMP="Bump versao? (M/m=p Major, m/minor, p/patch, s/skip): "
+
+if /i "%BUMP%"=="M" (
+    call npm version major --no-git-tag-version
+) else if /i "%BUMP%"=="m" (
+    call npm version minor --no-git-tag-version
+) else if /i "%BUMP%"=="p" (
+    call npm version patch --no-git-tag-version
+)
+
+:: Pega nova versao
+for /f "tokens=2 delims=:, " %%a in ('findstr "version" package.json') do (
+    set NEW_VERSION=%%~a
+)
+set NEW_VERSION=%NEW_VERSION:"=%
+set NEW_VERSION=%NEW_VERSION: =%
+
+echo.
+echo ==========================================
+echo  Versao: %NEW_VERSION%
+echo  Mensagem: %MSG%
+echo ==========================================
+echo.
+
+echo [1/5] Commitando mudancas no DEV...
 cd /d "C:\Users\Bill\Desktop\Fabricio\dev"
 git add -A
-git commit -m "%MSG%"
+git commit -m "v%NEW_VERSION% - %MSG%"
 
 echo.
-echo [2/4] Copiando arquivos para PUBLIC...
-if not exist "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos" mkdir "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos"
-xcopy /E /Y /Q "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\*" "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\"
-del /Q "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\node_modules\*" 2>nul
-rmdir /S /Q "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\node_modules" 2>nul
-del /Q "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\dist\*" 2>nul
-rmdir /S /Q "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\dist" 2>nul
-del /Q "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\.git\*" 2>nul
-rmdir /S /Q "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\.git" 2>nul
+echo [2/5] Buildando o instalador...
+cd /d "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos"
+call npm run build
+if errorlevel 1 (
+    echo ERRO no build!
+    pause
+    exit /b 1
+)
 
 echo.
-echo [3/4] Commitando mudancas no PUBLIC...
+echo [3/5] Criando GitHub Release v%NEW_VERSION%...
+cd /d "C:\Users\Bill\Desktop\Fabricio\dev"
+"C:\Program Files\GitHub CLI\gh.exe" release create "v%NEW_VERSION%" "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\release\*.exe" --title "v%NEW_VERSION%" --notes "%MSG%" --repo "Billhebert/editor-fluxos"
+
+echo.
+echo [4/5] Copiando arquivos para PUBLIC...
+xcopy /E /Y /Q "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\dist\main.js" "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\"
+xcopy /E /Y /Q "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\index.html" "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\"
+xcopy /E /Y /Q "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\package.json" "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\"
+xcopy /E /Y /Q "C:\Users\Bill\Desktop\Fabricio\dev\publish.bat" "C:\Users\Bill\Desktop\Fabricio\public\editor-fluxos\" 2>nul
+
+echo.
+echo [5/5] Commitando + push no PUBLIC...
 cd /d "C:\Users\Bill\Desktop\Fabricio\public"
 git add -A
-git commit -m "%MSG%"
-
-echo.
-echo [4/4] Enviando para GitHub...
+git commit -m "v%NEW_VERSION% - %MSG%"
 git push
 
 echo.
 echo ==========================================
 echo  PUBLICADO COM SUCESSO!
-echo ==========================================
-echo  DEV:   https://github.com/Billhebert/editor-fluxos-dev
+echo  Versao: %NEW_VERSION%
+echo  DEV:    https://github.com/Billhebert/editor-fluxos-dev
 echo  PUBLIC: https://github.com/Billhebert/editor-fluxos
+echo  RELEASE: https://github.com/Billhebert/editor-fluxos/releases
 echo ==========================================
 pause
