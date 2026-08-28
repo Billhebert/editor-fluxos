@@ -1,11 +1,12 @@
-# Editor de Fluxos
+# FLUXO
 
-Editor visual de fluxos para automacao.
+Editor visual de fluxos para automacao de teclado e mouse.
 
-## Como Usar
+## Download
 
-1. Baixe a versao mais recente na pagina de Releases
-2. Execute `Editor de Fluxos.exe`
+Baixe a versao mais recente do instalador na pagina de Releases:
+
+**https://github.com/Billhebert/editor-fluxos/releases/latest**
 
 ## Funcionalidades
 
@@ -15,3 +16,4 @@ Editor visual de fluxos para automacao.
 - Sistema de variaveis
 - Delay entre acoes
 - Salvar/Abrir arquivos JSON
+- Atualizacao automatica
