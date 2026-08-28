@@ -1,7 +1,7 @@
 import { Flow } from '../domain/Flow';
 import { Action } from '../domain/Action';
 import { RawAction } from '../domain/types';
-import { ConflictError, NotFoundError } from '../domain/errors';
+import { ConflictError, NotFoundError, ValidationError } from '../domain/errors';
 import { IFlowRepository } from '../adapters/IFlowRepository';
 import { IEventBus, Events } from '../adapters/IEventBus';
 import { IUndoManager, UndoableActionPort } from '../adapters/IUndoManager';
@@ -60,8 +60,6 @@ export class FlowManager {
         const flow = await this._repo.findByName(oldName);
         if (!flow) throw new NotFoundError('Flow', oldName);
 
-        await this._repo.rename(oldName, newName);
-
         await this._executeWithUndo({
             type: 'flow:rename',
             description: `Rename flow "${oldName}" → "${newName}"`,
@@ -77,7 +75,6 @@ export class FlowManager {
         if (!flow) throw new NotFoundError('Flow', name);
 
         const cloned = flow.clone();
-        await this._repo.delete(name);
 
         await this._executeWithUndo({
             type: 'flow:delete',
@@ -95,10 +92,8 @@ export class FlowManager {
 
         const action = Action.parse(rawAction);
         const raw = action.toRaw();
-        flow.addAction(raw);
-        await this._repo.save(flow);
 
-        const index = flow.length - 1;
+        const index = flow.length;
         await this._executeWithUndo({
             type: 'flow:action:add',
             description: `Add action to "${flowName}"`,
@@ -108,7 +103,7 @@ export class FlowManager {
             },
             undo: async () => {
                 const f = await this._repo.findByName(flowName);
-                if (f) { f.removeAction(index); await this._repo.save(f); }
+                if (f && f.length > 0) { f.removeAction(f.length - 1); await this._repo.save(f); }
             },
             event: Events.FLOW_ACTION_ADDED,
             payload: { flowName, action: raw, index }
@@ -120,9 +115,6 @@ export class FlowManager {
         if (!flow) throw new NotFoundError('Flow', flowName);
 
         const actions = rawActions.map(r => Action.parse(r).toRaw());
-        const startIndex = flow.length;
-        flow.addActions(actions);
-        await this._repo.save(flow);
 
         await this._executeWithUndo({
             type: 'flow:actions:add',
@@ -134,8 +126,8 @@ export class FlowManager {
             undo: async () => {
                 const f = await this._repo.findByName(flowName);
                 if (f) {
-                    for (let i = actions.length - 1; i >= 0; i--) {
-                        f.removeAction(startIndex + i);
+                    for (let i = 0; i < actions.length; i++) {
+                        f.removeAction(f.length - 1);
                     }
                     await this._repo.save(f);
                 }
@@ -150,19 +142,24 @@ export class FlowManager {
         if (!flow) throw new NotFoundError('Flow', flowName);
 
         const removed = flow.actions[index];
-        flow.removeAction(index);
-        await this._repo.save(flow);
+        if (removed === undefined) {
+            throw new ValidationError('Flow.actionIndex', `index ${index} out of range [0, ${flow.length})`);
+        }
+        const removedJson = JSON.stringify(removed);
 
         await this._executeWithUndo({
             type: 'flow:action:remove',
             description: `Remove action from "${flowName}"`,
             do: async () => {
                 const f = await this._repo.findByName(flowName);
-                if (f) { f.removeAction(index); await this._repo.save(f); }
+                if (f) {
+                    const idx = f.actions.findIndex(a => JSON.stringify(a) === removedJson);
+                    if (idx >= 0) { f.removeAction(idx); await this._repo.save(f); }
+                }
             },
             undo: async () => {
                 const f = await this._repo.findByName(flowName);
-                if (f) { f.addAction(removed); await this._repo.save(f); }
+                if (f) { f.insertAction(index, removed); await this._repo.save(f); }
             },
             event: Events.FLOW_ACTION_REMOVED,
             payload: { flowName, index }
@@ -172,9 +169,6 @@ export class FlowManager {
     async moveAction(flowName: string, fromIndex: number, toIndex: number): Promise<void> {
         const flow = await this._repo.findByName(flowName);
         if (!flow) throw new NotFoundError('Flow', flowName);
-
-        flow.moveAction(fromIndex, toIndex);
-        await this._repo.save(flow);
 
         await this._executeWithUndo({
             type: 'flow:action:move',

@@ -33,6 +33,13 @@ export class Flow {
         this._actions.push(action);
     }
 
+    insertAction(index: number, action: RawAction): void {
+        if (index < 0 || index > this._actions.length) {
+            throw new ValidationError('Flow.actionIndex', `index ${index} out of range [0, ${this._actions.length}]`);
+        }
+        this._actions.splice(index, 0, action);
+    }
+
     addActions(actions: RawAction[]): void {
         this._actions.push(...actions);
     }

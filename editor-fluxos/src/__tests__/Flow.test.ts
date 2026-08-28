@@ -62,6 +62,17 @@ describe('Flow', () => {
         expect(flow.actions).toEqual(['b', 'c', 'a', 'd']);
     });
 
+    it('insertAction inserts at position', () => {
+        const flow = new Flow('test', ['a', 'c']);
+        flow.insertAction(1, 'b');
+        expect(flow.actions).toEqual(['a', 'b', 'c']);
+    });
+
+    it('insertAction throws for out of range', () => {
+        const flow = new Flow('test', ['a']);
+        expect(() => flow.insertAction(5, 'b')).toThrow(ValidationError);
+    });
+
     it('rename changes the name', () => {
         const flow = new Flow('old-name');
         flow.rename('new-name');
