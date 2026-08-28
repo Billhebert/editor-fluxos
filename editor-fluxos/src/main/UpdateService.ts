@@ -13,7 +13,10 @@ export class UpdateService {
         autoUpdater.on('update-not-available', () => windowProvider()?.webContents.send(IpcChannels.UPDATE_STATUS, 'not-available'));
         autoUpdater.on('download-progress', (progress: any) => windowProvider()?.webContents.send(IpcChannels.UPDATE_STATUS, 'downloading', Math.round(progress.percent)));
         autoUpdater.on('update-downloaded', (info: any) => windowProvider()?.webContents.send(IpcChannels.UPDATE_STATUS, 'downloaded', info.version));
-        autoUpdater.on('error', (err: any) => console.error('Auto-updater error:', err));
+        autoUpdater.on('error', (err: any) => {
+            console.error('Auto-updater error:', err);
+            windowProvider()?.webContents.send(IpcChannels.UPDATE_STATUS, 'error', err.message);
+        });
 
         ipcMain.handle(IpcChannels.INSTALL_UPDATE, () => {
             autoUpdater.quitAndInstall();

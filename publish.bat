@@ -51,6 +51,7 @@ echo [1/5] Commitando mudancas no DEV...
 cd /d "C:\Users\Bill\Desktop\Fabricio\dev"
 git add -A
 git commit -m "v%NEW_VERSION% - %MSG%"
+git push origin master
 
 echo.
 echo [2/5] Buildando o instalador...
@@ -64,8 +65,22 @@ if errorlevel 1 (
 
 echo.
 echo [3/5] Criando GitHub Release v%NEW_VERSION%...
+cd /d "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\release"
+copy /Y "FLUXO Setup %NEW_VERSION%.exe" "FLUXO-Setup-%NEW_VERSION%.exe" >nul
+copy /Y "FLUXO Setup %NEW_VERSION%.exe.blockmap" "FLUXO-Setup-%NEW_VERSION%.exe.blockmap" >nul
 cd /d "C:\Users\Bill\Desktop\Fabricio\dev"
-"C:\Program Files\GitHub CLI\gh.exe" release create "v%NEW_VERSION%" "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\release\*.exe" --title "v%NEW_VERSION%" --notes "%MSG%" --repo "Billhebert/editor-fluxos"
+"C:\Program Files\GitHub CLI\gh.exe" release create "v%NEW_VERSION%" --title "v%NEW_VERSION%" --notes "%MSG%" --repo "Billhebert/editor-fluxos"
+if errorlevel 1 (
+    echo ERRO ao criar a release! Verifique se a tag "v%NEW_VERSION%" ja existe.
+    pause
+    exit /b 1
+)
+"C:\Program Files\GitHub CLI\gh.exe" release upload "v%NEW_VERSION%" "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\release\latest.yml" "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\release\FLUXO-Setup-%NEW_VERSION%.exe" "C:\Users\Bill\Desktop\Fabricio\dev\editor-fluxos\release\FLUXO-Setup-%NEW_VERSION%.exe.blockmap" --repo "Billhebert/editor-fluxos"
+if errorlevel 1 (
+    echo ERRO ao enviar os arquivos da release!
+    pause
+    exit /b 1
+)
 
 echo.
 echo [4/5] Commitando + push no PUBLIC...
