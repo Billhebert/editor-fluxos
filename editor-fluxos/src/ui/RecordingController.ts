@@ -2,6 +2,7 @@ import { RawAction } from '../domain/types';
 import { getActionClass, getActionLabel } from './ActionLabeler';
 import { Toast } from './Toast';
 import { VirtualKeyboardView } from './VirtualKeyboardView';
+import { normalizeKeyName } from './keyNames';
 
 export interface RecordingContext {
     getTargetFluxo(): string | null;
@@ -128,7 +129,7 @@ export class RecordingController {
             const tag = (e.target as HTMLElement)?.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             e.preventDefault();
-            this.addToQueue(e.key);
+            this.addToQueue(normalizeKeyName(e.key));
         });
     }
 

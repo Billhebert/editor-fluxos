@@ -1,6 +1,6 @@
 {
   "name": "editor-fluxos",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "FLUXO - Editor de fluxos para automacao",
   "main": "dist/main.js",
   "scripts": {

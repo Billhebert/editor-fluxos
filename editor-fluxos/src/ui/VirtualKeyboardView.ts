@@ -1,3 +1,5 @@
+import { normalizeKeyName } from './keyNames';
+
 export class VirtualKeyboardView {
     render(container: HTMLElement, onKey: (key: string) => void): void {
         container.innerHTML = '';
@@ -8,7 +10,7 @@ export class VirtualKeyboardView {
             ['Tab','Q','W','E','R','T','Y','U','I','O','P','[',']','\\'],
             ['CapsLock','A','S','D','F','G','H','J','K','L',';',"'",'Enter'],
             ['Shift','Z','X','C','V','B','N','M',',','.','/','Shift'],
-            ['Ctrl','Alt','Space','Alt','Ctrl']
+            ['Ctrl','Alt','Win','Space','Win','Alt','Ctrl']
         ];
 
         rows.forEach(row => {
@@ -18,7 +20,7 @@ export class VirtualKeyboardView {
                 const keyEl = document.createElement('button');
                 keyEl.className = 'key-btn';
                 keyEl.textContent = key;
-                keyEl.addEventListener('click', () => onKey(key));
+                keyEl.addEventListener('click', () => onKey(normalizeKeyName(key)));
                 rowEl.appendChild(keyEl);
             });
             container.appendChild(rowEl);

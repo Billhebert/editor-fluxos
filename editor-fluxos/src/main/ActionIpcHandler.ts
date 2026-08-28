@@ -16,6 +16,7 @@ const keyMap: Record<string, Key> = {
     'capslock': Key.CapsLock,
     'win': Key.LeftWin, 'winleft': Key.LeftWin, 'winright': Key.RightWin,
     'super': Key.LeftSuper, 'superleft': Key.LeftSuper, 'superright': Key.RightSuper,
+    'meta': Key.LeftWin,
 };
 
 export class ActionIpcHandler {
