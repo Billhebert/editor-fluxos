@@ -7,6 +7,7 @@ import { FlowRenderer, Toast, RecordingController, ScheduleController, VariableC
 import { modalPrompt } from './ui/modals/modalPrompt';
 import { UpdateBadgeController } from './ui/modals/UpdateBadgeController';
 import { IpcListenerSetup } from './infrastructure/IpcListenerSetup';
+import { IVariableConfigRepository } from './adapters/IVariableConfigRepository';
 
 export class App {
     private _variables: string[] = [];
@@ -15,6 +16,7 @@ export class App {
     private _fluxosCache: Record<string, RawAction[]> = {};
 
     private _flowRepo: LocalStorageFlowRepo;
+    private _varConfigRepo: IVariableConfigRepository;
     private _executor: ElectronIpcExecutor;
     private _flowExecutor: FlowExecutor;
     private _undoManager: UndoManager;
@@ -30,6 +32,7 @@ export class App {
     constructor() {
         this._undoManager = new UndoManager();
         this._flowRepo = new LocalStorageFlowRepo();
+        this._varConfigRepo = this._flowRepo;
         this._executor = new ElectronIpcExecutor();
         this._flowExecutor = new FlowExecutor(this._executor);
         this._flowRenderer = new FlowRenderer();
@@ -60,7 +63,7 @@ export class App {
         this._varConfigCtrl = new VariableConfigController({
             getVarConfig: () => this._varConfig,
             setVarConfig: (c) => { this._varConfig = c; },
-            saveVarConfig: (data) => this._flowRepo.saveVarConfig(data),
+            saveVarConfig: (data) => this._varConfigRepo.saveVarConfig(data),
             renderVariables: () => this._renderVariables(),
             saveToStorage: () => this._saveToStorage()
         });
@@ -99,7 +102,7 @@ export class App {
         } catch { this._variables = []; }
 
         try {
-            const config = this._flowRepo.loadVarConfig();
+            const config = this._varConfigRepo.loadVarConfig();
             this._varConfig = VariablePool.fromJSON(config);
         } catch { this._varConfig = new VariablePool(); }
     }
@@ -204,7 +207,13 @@ export class App {
         const result = await ipc.openFile();
         if (!result) return;
         this._currentFilePath = result.path;
-        const loaded: Record<string, RawAction[]> = JSON.parse(result.data);
+        let loaded: Record<string, RawAction[]>;
+        try {
+            loaded = JSON.parse(result.data);
+        } catch {
+            Toast.error('Arquivo JSON invalido');
+            return;
+        }
         const flows: Flow[] = Object.keys(loaded)
             .map(name => Flow.fromJSON({ name, actions: loaded[name] }))
             .filter((f): f is Flow => f !== null);
@@ -366,18 +375,26 @@ export class App {
     // === UNDO/REDO ===
 
     async undo(): Promise<void> {
-        const action = await this._undoManager.undo();
-        if (action) {
-            Toast.info(`Desfeito: ${action.description}`);
-            await this._renderAll();
+        try {
+            const action = await this._undoManager.undo();
+            if (action) {
+                Toast.info(`Desfeito: ${action.description}`);
+                await this._renderAll();
+            }
+        } catch (err: any) {
+            Toast.error(`Erro ao desfazer: ${err.message || 'Erro desconhecido'}`);
         }
     }
 
     async redo(): Promise<void> {
-        const action = await this._undoManager.redo();
-        if (action) {
-            Toast.info(`Refeito: ${action.description}`);
-            await this._renderAll();
+        try {
+            const action = await this._undoManager.redo();
+            if (action) {
+                Toast.info(`Refeito: ${action.description}`);
+                await this._renderAll();
+            }
+        } catch (err: any) {
+            Toast.error(`Erro ao refazer: ${err.message || 'Erro desconhecido'}`);
         }
     }
 }

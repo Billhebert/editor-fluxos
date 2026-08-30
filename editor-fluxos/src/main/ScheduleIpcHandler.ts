@@ -22,7 +22,6 @@ export class ScheduleIpcHandler {
             return true;
         });
 
-        ipcMain.handle(IpcChannels.START_SCHEDULER, () => { return true; });
         ipcMain.handle(IpcChannels.STOP_SCHEDULER, () => { this._scheduler.stop(); return true; });
     }
 }

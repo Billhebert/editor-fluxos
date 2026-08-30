@@ -99,16 +99,14 @@ describe('UndoManager', () => {
 
     it('handles undo error gracefully', async () => {
         const um = new UndoManager();
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         await um.execute({
             type: 't',
             description: 'test',
             undo: async () => { throw new Error('fail'); },
             redo: vi.fn()
         });
-        await um.undo();
-        consoleSpy.mockRestore();
-        // Should still be in redo stack
-        expect(um.canRedo).toBe(true);
+        await expect(um.undo()).rejects.toThrow('fail');
+        expect(um.canUndo).toBe(true);
+        expect(um.canRedo).toBe(false);
     });
 });

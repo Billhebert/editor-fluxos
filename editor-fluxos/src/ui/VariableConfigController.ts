@@ -1,5 +1,5 @@
 import { VariablePool } from '../domain/VariablePool';
-import { VariablePoolData } from '../domain/types';
+import { VariablePoolData, VariableConfig } from '../domain/types';
 import { Toast } from './Toast';
 import { escapeHtml } from './escapeHtml';
 
@@ -43,7 +43,19 @@ export class VariableConfigController {
                     <input type="text" id="opcValor" placeholder="Valor" style="width:200px;" />
                     <button class="btn btn-primary btn-sm btn-add-opc">+ Adicionar</button>
                 </div>
-                <div class="modal-actions" style="margin-top:24px;">
+                <div class="modal-actions" style="margin-top:24px; display:flex; gap:8px; align-items:center;">
+                    <input type="file" id="importJsonFile" accept=".json" style="position:absolute; opacity:0; pointer-events:none;" />
+                    <select id="importType" style="padding:6px 10px; border-radius:4px; border:1px solid #555; background:#1a1a2e; color:#e0e0e0;">
+                        <option value="obrig">Obrigatoria</option>
+                        <option value="opc">Opcional</option>
+                    </select>
+                    <button class="btn btn-outline btn-import-json">📁 Importar JSON</button>
+                    <select id="exportType" style="padding:6px 10px; border-radius:4px; border:1px solid #555; background:#1a1a2e; color:#e0e0e0;">
+                        <option value="all">Todas</option>
+                        <option value="obrig">Obrigatorias</option>
+                        <option value="opc">Opcionais</option>
+                    </select>
+                    <button class="btn btn-outline btn-export-json">💾 Exportar JSON</button>
                     <button class="btn btn-success btn-save">💾 Salvar</button>
                 </div>
             </div>
@@ -81,6 +93,54 @@ export class VariableConfigController {
             this._ctx.renderVariables();
             overlay.remove();
             Toast.success('Variaveis salvas!');
+        });
+
+        overlay.querySelector('.btn-import-json')!.addEventListener('click', () => {
+            (overlay.querySelector('#importJsonFile') as HTMLInputElement).click();
+        });
+        overlay.querySelector('#importJsonFile')!.addEventListener('change', (e) => {
+            const input = e.target as HTMLInputElement;
+            const file = input.files?.[0];
+            input.value = '';
+            if (!file) return;
+            const importType = (overlay.querySelector('#importType') as HTMLSelectElement).value;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const data = JSON.parse(reader.result as string);
+                    const pool = this._ctx.getVarConfig();
+                    let added = 0;
+                    const source: VariableConfig[] = data[importType === 'obrig' ? 'obrigatorias' : 'opcionais'] || [];
+                    source.forEach((item: VariableConfig) => {
+                        if (item.nome && item.valor) {
+                            try {
+                                if (importType === 'obrig') pool.addObrigatorio(item.nome, item.valor);
+                                else pool.addOpcional(item.nome, item.valor);
+                                added++;
+                            } catch {}
+                        }
+                    });
+                    this._ctx.setVarConfig(pool);
+                    this._renderTables(overlay);
+                    Toast.success(`${added} variaveis importadas como ${importType === 'obrig' ? 'obrigatorias' : 'opcionais'}!`);
+                } catch (err: any) {
+                    Toast.error('Erro ao importar: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+        overlay.querySelector('.btn-export-json')!.addEventListener('click', () => {
+            const exportType = (overlay.querySelector('#exportType') as HTMLSelectElement).value;
+            const all = this._ctx.getVarConfig().toJSON();
+            const data = exportType === 'all' ? all : { obrigatorias: exportType === 'obrig' ? all.obrigatorias : [], opcionais: exportType === 'opc' ? all.opcionais : [] };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'variaveis.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            Toast.success('JSON exportado!');
         });
     }
 

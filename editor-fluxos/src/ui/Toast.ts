@@ -5,13 +5,25 @@ export class Toast {
 
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
+
         const icons: Record<string, string> = { success: '✅', error: '❌', info: 'ℹ️' };
-        toast.innerHTML = `
-            <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
-            <span class="toast-msg">${msg}</span>
-            <button class="toast-close">✕</button>
-        `;
-        toast.querySelector('.toast-close')?.addEventListener('click', () => toast.remove());
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'toast-icon';
+        iconSpan.textContent = icons[type] || 'ℹ️';
+
+        const msgSpan = document.createElement('span');
+        msgSpan.className = 'toast-msg';
+        msgSpan.textContent = msg;
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'toast-close';
+        closeBtn.textContent = '✕';
+        closeBtn.addEventListener('click', () => toast.remove());
+
+        toast.appendChild(iconSpan);
+        toast.appendChild(msgSpan);
+        toast.appendChild(closeBtn);
         container.appendChild(toast);
         setTimeout(() => { if (toast.parentElement) toast.remove(); }, 5000);
     }

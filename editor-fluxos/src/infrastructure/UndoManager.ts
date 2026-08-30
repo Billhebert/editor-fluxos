@@ -39,24 +39,18 @@ export class UndoManager implements IUndoManager {
 
     async undo(): Promise<UndoableActionPort | null> {
         if (!this.canUndo) return null;
-        const action = this.undoStack.pop()!;
-        try {
-            await action.undo();
-        } catch (err) {
-            console.error(`Undo failed for "${action.description}":`, err);
-        }
+        const action = this.undoStack[this.undoStack.length - 1];
+        await action.undo();
+        this.undoStack.pop();
         this.redoStack.push(action);
         return action;
     }
 
     async redo(): Promise<UndoableActionPort | null> {
         if (!this.canRedo) return null;
-        const action = this.redoStack.pop()!;
-        try {
-            await action.redo();
-        } catch (err) {
-            console.error(`Redo failed for "${action.description}":`, err);
-        }
+        const action = this.redoStack[this.redoStack.length - 1];
+        await action.redo();
+        this.redoStack.pop();
         this.undoStack.push(action);
         return action;
     }

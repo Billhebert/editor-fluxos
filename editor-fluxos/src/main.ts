@@ -6,6 +6,7 @@ import { CaptureIpcHandler } from './main/CaptureIpcHandler';
 import { FileIpcHandler } from './main/FileIpcHandler';
 import { ScheduleIpcHandler } from './main/ScheduleIpcHandler';
 import { UpdateService } from './main/UpdateService';
+import { NodeFileSystem } from './infrastructure/NodeFileSystem';
 
 let mainWindow: BrowserWindow | null = null;
 const windowProvider = () => mainWindow;
@@ -46,7 +47,7 @@ app.whenReady().then(() => {
     const scheduler = new SchedulerService();
     scheduler.start(windowProvider);
 
-    new FileIpcHandler().register(windowProvider);
+    new FileIpcHandler(new NodeFileSystem()).register(windowProvider);
     new ActionIpcHandler().register();
     new CaptureIpcHandler().register(windowProvider);
     new ScheduleIpcHandler(scheduler).register();

@@ -39,7 +39,6 @@ export class FlowManager {
         if (existing) throw new ConflictError(`Flow "${name}" already exists`);
 
         const flow = new Flow(name);
-        await this._repo.save(flow);
 
         await this._executeWithUndo({
             type: 'flow:create',

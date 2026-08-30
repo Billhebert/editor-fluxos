@@ -17,7 +17,6 @@ export const IpcChannels = {
     GET_SCHEDULES: 'get-schedules',
     SAVE_SCHEDULES: 'save-schedules',
     UPDATE_INSTANCE_STATUS: 'update-instance-status',
-    START_SCHEDULER: 'start-scheduler',
     STOP_SCHEDULER: 'stop-scheduler',
     // Scheduler events (main -> renderer)
     EXECUTE_SCHEDULED: 'execute-scheduled',

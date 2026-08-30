@@ -1,4 +1,5 @@
 import { IFlowRepository } from '../adapters/IFlowRepository';
+import { IVariableConfigRepository } from '../adapters/IVariableConfigRepository';
 import { Flow } from '../domain/Flow';
 import { VariablePoolData } from '../domain/types';
 
@@ -6,10 +7,11 @@ interface StorageData {
     fluxos?: Record<string, any[]>;
 }
 
-export class LocalStorageFlowRepo implements IFlowRepository {
+export class LocalStorageFlowRepo implements IFlowRepository, IVariableConfigRepository {
     private _key: string;
     private _varConfigKey: string;
     private _variablesKey: string;
+    private _cache: StorageData = {};
 
     constructor(storageKey: string = 'fluxos_editor_data') {
         this._key = storageKey;
@@ -22,15 +24,18 @@ export class LocalStorageFlowRepo implements IFlowRepository {
     }
 
     private loadData(): StorageData {
+        if (this._cache) return this._cache;
         try {
             const raw = this.storage.getItem(this._key);
-            return raw ? JSON.parse(raw) : {};
+            this._cache = raw ? JSON.parse(raw) : {};
         } catch {
-            return {};
+            this._cache = {};
         }
+        return this._cache;
     }
 
     private saveData(data: StorageData): void {
+        this._cache = data;
         this.storage.setItem(this._key, JSON.stringify(data));
     }
 
