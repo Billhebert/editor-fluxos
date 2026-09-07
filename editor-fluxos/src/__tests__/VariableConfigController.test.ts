@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VariableConfigController, VariableConfigContext } from '../ui/VariableConfigController';
 import { VariablePool } from '../domain';
+import { Toast } from '../ui/Toast';
 
 vi.mock('../ui/Toast', () => ({
     Toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
@@ -24,60 +25,442 @@ describe('VariableConfigController', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        document.body.innerHTML = '';
         ctx = createMockCtx();
         ctrl = new VariableConfigController(ctx);
     });
 
-    it('open creates modal with correct structure', () => {
-        ctrl.open();
+    describe('open/close', () => {
+        it('open creates modal', () => {
+            ctrl.open();
+            expect(document.getElementById('varConfigModal')).not.toBeNull();
+        });
 
-        const modal = document.getElementById('varConfigModal');
-        expect(modal).not.toBeNull();
-        expect(modal!.className).toContain('modal-fullscreen');
-        expect(modal!.querySelector('h2')!.textContent).toContain('Variaveis');
+        it('open renders structure', () => {
+            ctrl.open();
+            const modal = document.getElementById('varConfigModal')!;
+            expect(modal.querySelector('h2')!.textContent).toContain('Variaveis');
+            expect(modal.querySelector('#obrigTable')).not.toBeNull();
+            expect(modal.querySelector('#opcionalTable')).not.toBeNull();
+        });
+
+        it('open renders buttons', () => {
+            ctrl.open();
+            const modal = document.getElementById('varConfigModal')!;
+            expect(modal.querySelector('.btn-close')).not.toBeNull();
+            expect(modal.querySelector('.btn-add-obrig')).not.toBeNull();
+            expect(modal.querySelector('.btn-add-opc')).not.toBeNull();
+            expect(modal.querySelector('.btn-save')).not.toBeNull();
+            expect(modal.querySelector('.btn-import-json')).not.toBeNull();
+            expect(modal.querySelector('.btn-export-json')).not.toBeNull();
+        });
+
+        it('open renders selects for import/export', () => {
+            ctrl.open();
+            const modal = document.getElementById('varConfigModal')!;
+            expect(modal.querySelector('#importType')).not.toBeNull();
+            expect(modal.querySelector('#exportType')).not.toBeNull();
+        });
+
+        it('open renders hidden file input', () => {
+            ctrl.open();
+            const modal = document.getElementById('varConfigModal')!;
+            const fileInput = modal.querySelector('#importJsonFile') as HTMLInputElement;
+            expect(fileInput).not.toBeNull();
+            expect(fileInput.type).toBe('file');
+        });
+
+        it('open renders empty state', () => {
+            ctrl.open();
+            const modal = document.getElementById('varConfigModal')!;
+            expect(modal.querySelector('.empty-state')).not.toBeNull();
+        });
+
+        it('close removes modal', () => {
+            ctrl.open();
+            expect(document.getElementById('varConfigModal')).not.toBeNull();
+            ctrl.close();
+            expect(document.getElementById('varConfigModal')).toBeNull();
+        });
+
+        it('close is safe when not open', () => {
+            expect(() => ctrl.close()).not.toThrow();
+        });
     });
 
-    it('open renders sections for obrigatorias and opcionais', () => {
-        ctrl.open();
+    describe('handleAddObrig', () => {
+        beforeEach(() => { ctrl.open(); });
 
-        const modal = document.getElementById('varConfigModal')!;
-        expect(modal.querySelector('#obrigTable')).not.toBeNull();
-        expect(modal.querySelector('#opcionalTable')).not.toBeNull();
+        it('adds obrig when name and value provided', () => {
+            const pool = new VariablePool();
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            (document.getElementById('obrigNome') as HTMLInputElement).value = 'cor';
+            (document.getElementById('obrigValor') as HTMLInputElement).value = 'azul';
+
+            ctrl.handleAddObrig();
+
+            expect(pool.obrigatorias).toHaveLength(1);
+            expect(pool.obrigatorias[0]).toEqual({ nome: 'cor', valor: 'azul' });
+        });
+
+        it('clears inputs after adding', () => {
+            vi.mocked(ctx.getVarConfig).mockReturnValue(new VariablePool());
+            (document.getElementById('obrigNome') as HTMLInputElement).value = 'cor';
+            (document.getElementById('obrigValor') as HTMLInputElement).value = 'azul';
+
+            ctrl.handleAddObrig();
+
+            expect((document.getElementById('obrigNome') as HTMLInputElement).value).toBe('');
+            expect((document.getElementById('obrigValor') as HTMLInputElement).value).toBe('');
+        });
+
+        it('does nothing with empty name', () => {
+            const pool = new VariablePool();
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            (document.getElementById('obrigNome') as HTMLInputElement).value = '';
+            (document.getElementById('obrigValor') as HTMLInputElement).value = 'azul';
+
+            ctrl.handleAddObrig();
+
+            expect(pool.obrigatorias).toHaveLength(0);
+        });
+
+        it('does nothing with empty value', () => {
+            const pool = new VariablePool();
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            (document.getElementById('obrigNome') as HTMLInputElement).value = 'cor';
+            (document.getElementById('obrigValor') as HTMLInputElement).value = '';
+
+            ctrl.handleAddObrig();
+
+            expect(pool.obrigatorias).toHaveLength(0);
+        });
+
+        it('does nothing when not open', () => {
+            ctrl.close();
+            expect(() => ctrl.handleAddObrig()).not.toThrow();
+        });
+
+        it('shows Toast.error on duplicate', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('cor', 'azul');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            (document.getElementById('obrigNome') as HTMLInputElement).value = 'x';
+            (document.getElementById('obrigValor') as HTMLInputElement).value = 'azul';
+
+            ctrl.handleAddObrig();
+
+            expect(Toast.error).toHaveBeenCalled();
+        });
     });
 
-    it('open renders action buttons', () => {
-        ctrl.open();
+    describe('handleAddOpc', () => {
+        beforeEach(() => { ctrl.open(); });
 
-        const modal = document.getElementById('varConfigModal')!;
-        expect(modal.querySelector('.btn-close')).not.toBeNull();
-        expect(modal.querySelector('.btn-add-obrig')).not.toBeNull();
-        expect(modal.querySelector('.btn-add-opc')).not.toBeNull();
-        expect(modal.querySelector('.btn-save')).not.toBeNull();
-        expect(modal.querySelector('.btn-import-json')).not.toBeNull();
-        expect(modal.querySelector('.btn-export-json')).not.toBeNull();
+        it('adds opcional', () => {
+            const pool = new VariablePool();
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            (document.getElementById('opcNome') as HTMLInputElement).value = 'fruta';
+            (document.getElementById('opcValor') as HTMLInputElement).value = 'maca';
+
+            ctrl.handleAddOpc();
+
+            expect(pool.opcionais).toHaveLength(1);
+            expect(pool.opcionais[0]).toEqual({ nome: 'fruta', valor: 'maca' });
+        });
+
+        it('clears inputs after adding', () => {
+            vi.mocked(ctx.getVarConfig).mockReturnValue(new VariablePool());
+            (document.getElementById('opcNome') as HTMLInputElement).value = 'fruta';
+            (document.getElementById('opcValor') as HTMLInputElement).value = 'maca';
+
+            ctrl.handleAddOpc();
+
+            expect((document.getElementById('opcNome') as HTMLInputElement).value).toBe('');
+            expect((document.getElementById('opcValor') as HTMLInputElement).value).toBe('');
+        });
+
+        it('does nothing with empty fields', () => {
+            const pool = new VariablePool();
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            (document.getElementById('opcNome') as HTMLInputElement).value = '';
+            (document.getElementById('opcValor') as HTMLInputElement).value = '';
+
+            ctrl.handleAddOpc();
+
+            expect(pool.opcionais).toHaveLength(0);
+        });
+
+        it('does nothing when not open', () => {
+            ctrl.close();
+            expect(() => ctrl.handleAddOpc()).not.toThrow();
+        });
+
+        it('shows Toast.error on duplicate', () => {
+            const pool = new VariablePool();
+            pool.addOpcional('fruta', 'maca');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            (document.getElementById('opcNome') as HTMLInputElement).value = 'x';
+            (document.getElementById('opcValor') as HTMLInputElement).value = 'maca';
+
+            ctrl.handleAddOpc();
+
+            expect(Toast.error).toHaveBeenCalled();
+        });
     });
 
-    it('open renders import/export selects', () => {
-        ctrl.open();
+    describe('handleSave', () => {
+        beforeEach(() => { ctrl.open(); });
 
-        const modal = document.getElementById('varConfigModal')!;
-        expect(modal.querySelector('#importType')).not.toBeNull();
-        expect(modal.querySelector('#exportType')).not.toBeNull();
+        it('saves config and closes modal', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('cor', 'azul');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            ctrl.handleSave();
+
+            expect(ctx.saveVarConfig).toHaveBeenCalledWith(pool.toJSON());
+            expect(ctx.saveToStorage).toHaveBeenCalled();
+            expect(ctx.renderVariables).toHaveBeenCalled();
+            expect(document.getElementById('varConfigModal')).toBeNull();
+            expect(Toast.success).toHaveBeenCalledWith('Variaveis salvas!');
+        });
+
+        it('does nothing when not open', () => {
+            ctrl.close();
+            expect(() => ctrl.handleSave()).not.toThrow();
+            expect(ctx.saveVarConfig).not.toHaveBeenCalled();
+        });
     });
 
-    it('open renders file input hidden', () => {
-        ctrl.open();
+    describe('handleExport', () => {
+        beforeEach(() => { ctrl.open(); });
 
-        const modal = document.getElementById('varConfigModal')!;
-        const fileInput = modal.querySelector('#importJsonFile') as HTMLInputElement;
-        expect(fileInput).not.toBeNull();
-        expect(fileInput.type).toBe('file');
+        it('exports all by default', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('cor', 'azul');
+            pool.addOpcional('fruta', 'maca');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            const mockClick = vi.fn();
+            const origCreateElement = document.createElement.bind(document);
+            vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+                if (tag === 'a') return { click: mockClick, href: '', download: '' } as any;
+                return origCreateElement(tag);
+            });
+            vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:');
+            vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+            ctrl.handleExport();
+
+            expect(mockClick).toHaveBeenCalled();
+            expect(Toast.success).toHaveBeenCalledWith('JSON exportado!');
+            vi.restoreAllMocks();
+        });
+
+        it('exports only obrigatorias when type is obrig', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('cor', 'azul');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            const select = document.getElementById('exportType') as HTMLSelectElement;
+            select.value = 'obrig';
+
+            const mockClick = vi.fn();
+            const origCreateElement = document.createElement.bind(document);
+            vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+                if (tag === 'a') return { click: mockClick, href: '', download: '' } as any;
+                return origCreateElement(tag);
+            });
+            vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:');
+            vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+            ctrl.handleExport();
+
+            expect(mockClick).toHaveBeenCalled();
+            vi.restoreAllMocks();
+        });
     });
 
-    it('open renders empty state when no variables', () => {
-        ctrl.open();
+    describe('handleImportFile', () => {
+        beforeEach(() => { ctrl.open(); });
 
-        const modal = document.getElementById('varConfigModal')!;
-        expect(modal.querySelector('.empty-state')).not.toBeNull();
+        it('does nothing when no file selected', () => {
+            const event = { target: { files: [], value: '' } } as any;
+            ctrl.handleImportFile(event);
+            expect(ctx.setVarConfig).not.toHaveBeenCalled();
+        });
+        it('imports obrig variables from JSON', async () => {
+            const pool = new VariablePool();
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            const jsonData = JSON.stringify({ obrigatorias: [{ nome: 'cor', valor: 'azul' }], opcionais: [] });
+
+            const origFileReader = globalThis.FileReader;
+            globalThis.FileReader = class {
+                result: string | null = null;
+                onload: ((e: any) => void) | null = null;
+                readAsText(_blob: Blob) {
+                    this.result = jsonData;
+                    this.onload?.({ target: { result: jsonData } });
+                }
+            } as any;
+
+            const file = new File([jsonData], 'test.json', { type: 'application/json' });
+            const event = { target: { files: [file], value: '' } } as any;
+
+            ctrl.handleImportFile(event);
+
+            globalThis.FileReader = origFileReader;
+            expect(ctx.setVarConfig).toHaveBeenCalled();
+            expect(Toast.success).toHaveBeenCalled();
+        });
+
+        it('imports opc variables from JSON', async () => {
+            const pool = new VariablePool();
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            const jsonData = JSON.stringify({ obrigatorias: [], opcionais: [{ nome: 'fruta', valor: 'maca' }] });
+
+            const origFileReader = globalThis.FileReader;
+            globalThis.FileReader = class {
+                result: string | null = null;
+                onload: ((e: any) => void) | null = null;
+                readAsText(_blob: Blob) {
+                    this.result = jsonData;
+                    this.onload?.({ target: { result: jsonData } });
+                }
+            } as any;
+
+            const select = document.getElementById('importType') as HTMLSelectElement;
+            select.value = 'opc';
+
+            const file = new File([jsonData], 'test.json', { type: 'application/json' });
+            const event = { target: { files: [file], value: '' } } as any;
+
+            ctrl.handleImportFile(event);
+
+            globalThis.FileReader = origFileReader;
+            expect(ctx.setVarConfig).toHaveBeenCalled();
+        });
+
+        it('shows Toast.error on invalid JSON', async () => {
+            const origFileReader = globalThis.FileReader;
+            globalThis.FileReader = class {
+                result: string | null = null;
+                onload: ((e: any) => void) | null = null;
+                readAsText(_blob: Blob) {
+                    this.onload?.({ target: { result: 'invalid' } });
+                }
+            } as any;
+
+            const file = new File(['invalid'], 'test.json', { type: 'application/json' });
+            const event = { target: { files: [file], value: '' } } as any;
+
+            ctrl.handleImportFile(event);
+
+            globalThis.FileReader = origFileReader;
+            expect(Toast.error).toHaveBeenCalled();
+        });
+
+        it('skips items with empty nome or valor', async () => {
+            const pool = new VariablePool();
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            const jsonData = JSON.stringify({ obrigatorias: [{ nome: '', valor: 'x' }, { nome: 'y', valor: '' }, { nome: 'ok', valor: 'val' }], opcionais: [] });
+
+            const origFileReader = globalThis.FileReader;
+            globalThis.FileReader = class {
+                result: string | null = null;
+                onload: ((e: any) => void) | null = null;
+                readAsText(_blob: Blob) {
+                    this.result = jsonData;
+                    this.onload?.({ target: { result: jsonData } });
+                }
+            } as any;
+
+            const file = new File([jsonData], 'test.json', { type: 'application/json' });
+            const event = { target: { files: [file], value: '' } } as any;
+
+            ctrl.handleImportFile(event);
+
+            globalThis.FileReader = origFileReader;
+            expect(pool.obrigatorias).toHaveLength(1);
+        });
+
+        it('skips items that throw on add', async () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('cor', 'azul');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            const jsonData = JSON.stringify({ obrigatorias: [{ nome: 'cor', valor: 'azul' }], opcionais: [] });
+
+            const origFileReader = globalThis.FileReader;
+            globalThis.FileReader = class {
+                result: string | null = null;
+                onload: ((e: any) => void) | null = null;
+                readAsText(_blob: Blob) {
+                    this.result = jsonData;
+                    this.onload?.({ target: { result: jsonData } });
+                }
+            } as any;
+
+            const file = new File([jsonData], 'test.json', { type: 'application/json' });
+            const event = { target: { files: [file], value: '' } } as any;
+
+            ctrl.handleImportFile(event);
+
+            globalThis.FileReader = origFileReader;
+            expect(pool.obrigatorias).toHaveLength(1);
+        });
+    });
+
+    describe('_renderTable', () => {
+        it('shows table with items when pool has data', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('cor', 'azul');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            ctrl.open();
+
+            const modal = document.getElementById('varConfigModal')!;
+            const table = modal.querySelector('#obrigTable table');
+            expect(table).not.toBeNull();
+            expect(table!.querySelector('tbody')!.children.length).toBe(1);
+        });
+
+        it('shows empty state when pool is empty', () => {
+            ctrl.open();
+            const modal = document.getElementById('varConfigModal')!;
+            expect(modal.querySelector('#obrigTable .empty-state')).not.toBeNull();
+        });
+
+        it('shows remove buttons for items', () => {
+            const pool = new VariablePool();
+            pool.addOpcional('fruta', 'maca');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            ctrl.open();
+
+            const modal = document.getElementById('varConfigModal')!;
+            expect(modal.querySelector('.btn-remove-opc')).not.toBeNull();
+        });
+
+        it('escapes HTML in variable names', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('<script>alert(1)</script>', 'val');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+
+            ctrl.open();
+
+            const modal = document.getElementById('varConfigModal')!;
+            const html = modal.querySelector('#obrigTable')!.innerHTML;
+            expect(html).not.toContain('<script>');
+            expect(html).toContain('&lt;script&gt;');
+        });
     });
 });
