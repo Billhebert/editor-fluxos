@@ -55,6 +55,10 @@ export class ScheduleListView {
                 ? `Recorrente (${sch.days.map(d => WEEK_DAYS[d]).join(', ')})`
                 : `Unico (${sch.date})`;
 
+            const dateRangeLabel = sch.dataInicio || sch.dataFim
+                ? `📅 ${sch.dataInicio || '?'} → ${sch.dataFim || '?'}`
+                : '';
+
             const card = document.createElement('div');
             card.className = 'schedule-card';
             card.innerHTML = `
@@ -69,6 +73,7 @@ export class ScheduleListView {
                 </div>
                 <div class="schedule-card-meta">
                     <span>🔁 ${modeLabel}</span>
+                    ${dateRangeLabel ? `<span>${dateRangeLabel}</span>` : ''}
                     <span>🎯 ${escapeHtml(sch.obrigatorioValor || 'N/A')}</span>
                     <span>🔄 ${sch.repeticoes || total}x</span>
                     <span>⏱ ${sch.intervaloMinimo}s</span>

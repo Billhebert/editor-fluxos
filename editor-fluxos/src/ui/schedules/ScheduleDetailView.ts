@@ -19,6 +19,10 @@ export class ScheduleDetailView {
             ? `Recorrente (${sch.days.map(d => WEEK_DAYS[d]).join(', ')})`
             : `Unico (${sch.date})`;
 
+        const dateRangeLabel = sch.dataInicio || sch.dataFim
+            ? `📅 ${sch.dataInicio || '?'} → ${sch.dataFim || '?'}`
+            : '';
+
         overlay.innerHTML = `
             <div class="modal-fullscreen-header">
                 <h2>📋 ${escapeHtml(sch.flowName)}</h2>
@@ -27,6 +31,7 @@ export class ScheduleDetailView {
             <div style="max-width:900px; margin:0 auto;">
                 <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; color:#aaa; font-size:14px;">
                     <span>🔁 ${modeLabel}</span>
+                    ${dateRangeLabel ? `<span>${dateRangeLabel}</span>` : ''}
                     <span>🎯 ${escapeHtml(sch.obrigatorioValor || 'N/A')}</span>
                     <span>🔄 ${sch.repeticoes || sch.executionOrder.length}x</span>
                     <span>⏱ ${sch.intervaloMinimo}s</span>

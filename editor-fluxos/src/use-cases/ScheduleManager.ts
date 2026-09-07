@@ -33,7 +33,9 @@ export class ScheduleManager {
             config.timeStart || '07:00',
             config.timeEnd || '08:00',
             config.intervaloMinimo || 60,
-            variablePool
+            variablePool,
+            config.dataInicio || null,
+            config.dataFim || null
         );
 
         const schedule = new Schedule({ ...config, executionOrder: order });
@@ -84,7 +86,9 @@ export class ScheduleManager {
         timeStart: string,
         timeEnd: string,
         intervaloMinimo: number,
-        variablePool?: VariablePool
+        variablePool?: VariablePool,
+        dataInicio?: string | null,
+        dataFim?: string | null
     ): ExecutionInstance[] {
         const [sh, sm] = timeStart.split(':').map(Number);
         const [eh, em] = timeEnd.split(':').map(Number);
@@ -95,24 +99,69 @@ export class ScheduleManager {
             throw new Error(`timeEnd (${timeEnd}) must be after timeStart (${timeStart})`);
         }
 
-        const totalMinutes = endMin - startMin;
-        const minIntervalMinutes = Math.max(intervaloMinimo / 60, 1);
-
         const poolOpcionais = variablePool
             ? [...variablePool.opcionais].sort(() => Math.random() - 0.5)
             : [];
         let opcPool = [...poolOpcionais];
 
         const minIntervalMs = Math.max(intervaloMinimo, 1) * 1000;
+
+        let instanceId = 0;
+
+        if (dataInicio && dataFim) {
+            const allTimestamps: number[] = [];
+            const [dIYear, dIMonth, dIDay] = dataInicio.split('-').map(Number);
+            const [dFYear, dFMonth, dFDay] = dataFim.split('-').map(Number);
+            const rangeStart = new Date(dIYear, dIMonth - 1, dIDay);
+            const rangeEnd = new Date(dFYear, dFMonth - 1, dFDay, 23, 59, 59);
+
+            const current = new Date(rangeStart);
+            while (current <= rangeEnd) {
+                const year = current.getFullYear();
+                const month = current.getMonth();
+                const day = current.getDate();
+
+                const totalMinutes = endMin - startMin;
+                const slotMinutes = totalMinutes / count;
+
+                for (let i = 0; i < count; i++) {
+                    const baseOffset = slotMinutes * i;
+                    const jitter = Math.random() * Math.max(0, slotMinutes - intervaloMinimo / 60);
+                    const randMin = Math.floor(startMin + baseOffset + jitter);
+                    const randSec = Math.floor(Math.random() * 60);
+                    const ts = new Date(year, month, day, Math.floor(randMin / 60), randMin % 60, randSec).getTime();
+                    allTimestamps.push(ts);
+                }
+
+                current.setDate(current.getDate() + 1);
+            }
+
+            allTimestamps.sort((a, b) => a - b);
+            for (let i = 1; i < allTimestamps.length; i++) {
+                if (allTimestamps[i] - allTimestamps[i - 1] < minIntervalMs) {
+                    allTimestamps[i] = allTimestamps[i - 1] + minIntervalMs;
+                }
+            }
+
+            return allTimestamps.map((ts) => {
+                instanceId++;
+                const resolved = this._resolveActions(template, obrigatorioValor, poolOpcionais, opcPool);
+                return new ExecutionInstance(instanceId, ts, resolved);
+            });
+        }
+
+        const totalMinutes = endMin - startMin;
+        const minIntervalMinutes = Math.max(intervaloMinimo / 60, 1);
+        const slotMinutes = totalMinutes / count;
+
         const timestamps: number[] = [];
+        const [year, month, day] = date.split('-').map(Number);
 
         for (let i = 0; i < count; i++) {
-            const slotMinutes = totalMinutes / count;
             const baseOffset = slotMinutes * i;
             const jitter = Math.random() * Math.max(0, slotMinutes - minIntervalMinutes);
             const randMin = Math.floor(startMin + baseOffset + jitter);
             const randSec = Math.floor(Math.random() * 60);
-            const [year, month, day] = date.split('-').map(Number);
             const ts = new Date(year, month - 1, day, Math.floor(randMin / 60), randMin % 60, randSec).getTime();
             timestamps.push(ts);
         }
@@ -124,29 +173,33 @@ export class ScheduleManager {
             }
         }
 
-        return timestamps.map((ts, i) => {
-            const usedOpcionais = new Set<string>();
-            const resolved: RawAction[] = template.map(raw => {
-                if (raw === 'ITEM_OBRIGATORIO') return obrigatorioValor || '[SEM ITEM]';
-                if (raw === 'ITEM_OPCIONAL') {
-                    if (opcPool.length === 0) opcPool = [...poolOpcionais].sort(() => Math.random() - 0.5);
-                    let pick = opcPool.shift();
-                    let attempts = 0;
-                    while (pick && usedOpcionais.has(pick.valor) && attempts < opcPool.length + 1) {
-                        opcPool.push(pick);
-                        pick = opcPool.shift();
-                        attempts++;
-                    }
-                    if (pick && !usedOpcionais.has(pick.valor)) {
-                        usedOpcionais.add(pick.valor);
-                        return pick.valor;
-                    }
-                    return pick?.valor || '[SEM OPCIONAL]';
-                }
-                return raw;
-            });
+        return timestamps.map((ts) => {
+            instanceId++;
+            const resolved = this._resolveActions(template, obrigatorioValor, poolOpcionais, opcPool);
+            return new ExecutionInstance(instanceId, ts, resolved);
+        });
+    }
 
-            return new ExecutionInstance(i + 1, ts, resolved);
+    private _resolveActions(template: RawAction[], obrigatorioValor: string, poolOpcionais: { nome: string; valor: string }[], opcPool: { nome: string; valor: string }[]): RawAction[] {
+        const usedOpcionais = new Set<string>();
+        return template.map(raw => {
+            if (raw === 'ITEM_OBRIGATORIO') return obrigatorioValor || '[SEM ITEM]';
+            if (raw === 'ITEM_OPCIONAL') {
+                if (opcPool.length === 0) opcPool = [...poolOpcionais].sort(() => Math.random() - 0.5);
+                let pick = opcPool.shift();
+                let attempts = 0;
+                while (pick && usedOpcionais.has(pick.valor) && attempts < opcPool.length + 1) {
+                    opcPool.push(pick);
+                    pick = opcPool.shift();
+                    attempts++;
+                }
+                if (pick && !usedOpcionais.has(pick.valor)) {
+                    usedOpcionais.add(pick.valor);
+                    return pick.valor;
+                }
+                return pick?.valor || '[SEM OPCIONAL]';
+            }
+            return raw;
         });
     }
 }

@@ -14,12 +14,14 @@ export interface NewScheduleResult {
     obrigValor: string;
     count: number;
     interval: number;
+    dataInicio: string | null;
+    dataFim: string | null;
 }
 
 export interface NewScheduleCallbacks {
     onClose(): void;
     onGenerate(result: NewScheduleResult): void;
-    generateOrder(template: RawAction[], obrigValor: string, count: number, date: string, timeStart: string, timeEnd: string, interval: number): ExecutionInstance[];
+    generateOrder(template: RawAction[], obrigValor: string, count: number, date: string, timeStart: string, timeEnd: string, interval: number, dataInicio?: string | null, dataFim?: string | null): ExecutionInstance[];
 }
 
 export class NewScheduleView {
@@ -58,7 +60,7 @@ export class NewScheduleView {
 
                 <div class="section-title">Intervalo Minimo</div>
                 <div class="config-row">
-                    <input type="number" id="schInterval" value="60" min="10" max="3600" style="width:80px;" />
+                    <input type="number" id="schInterval" value="60" min="10" style="width:100px;" />
                     <span style="color:#888; font-size:13px;">segundos</span>
                 </div>
 
@@ -78,6 +80,19 @@ export class NewScheduleView {
                 </div>
 
                 <div id="modeRecurringFields" style="display:none;">
+                    <div class="section-title">Periodo de Atividade</div>
+                    <div class="config-row">
+                        <div>
+                            <label style="color:#888; font-size:12px;">Data Inicio</label>
+                            <input type="date" id="schDataInicio" style="width:150px;" />
+                        </div>
+                        <div>
+                            <label style="color:#888; font-size:12px;">Data Fim</label>
+                            <input type="date" id="schDataFim" style="width:150px;" />
+                        </div>
+                        <span style="color:#666; font-size:12px; align-self:flex-end;">(Opcional)</span>
+                    </div>
+
                     <div class="section-title">Dias</div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         ${[1,2,3,4,5,6,0].map(d => `
@@ -131,6 +146,9 @@ export class NewScheduleView {
             if (!template || template.length === 0) { alert('Fluxo vazio!'); return; }
 
             let date: string, timeStart: string, timeEnd: string;
+            let dataInicio: string | null = null;
+            let dataFim: string | null = null;
+
             if (currentMode === 'one-shot') {
                 date = (document.getElementById('schDate') as HTMLInputElement).value;
                 timeStart = (document.getElementById('schTimeStart') as HTMLInputElement).value;
@@ -139,12 +157,19 @@ export class NewScheduleView {
                 date = new Date().toISOString().split('T')[0];
                 timeStart = (document.getElementById('schTimeStartR') as HTMLInputElement).value;
                 timeEnd = (document.getElementById('schTimeEndR') as HTMLInputElement).value;
+                dataInicio = (document.getElementById('schDataInicio') as HTMLInputElement).value || null;
+                dataFim = (document.getElementById('schDataFim') as HTMLInputElement).value || null;
             }
 
             if (!date || !timeStart || !timeEnd) { alert('Preencha todos os campos!'); return; }
             if (timeStart >= timeEnd) { alert('Horario de inicio deve ser antes do fim!'); return; }
 
-            const order = callbacks.generateOrder(template, obrigValor, count, date, timeStart, timeEnd, interval);
+            if (dataInicio && dataFim && dataInicio > dataFim) {
+                alert('Data de inicio deve ser antes da data fim!');
+                return;
+            }
+
+            const order = callbacks.generateOrder(template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim);
 
             let days: number[] = [];
             if (currentMode === 'recurring') {
@@ -152,7 +177,7 @@ export class NewScheduleView {
             }
 
             overlay.remove();
-            callbacks.onGenerate({ flowName, order, mode: currentMode, date, timeStart, timeEnd, days, obrigValor, count, interval });
+            callbacks.onGenerate({ flowName, order, mode: currentMode, date, timeStart, timeEnd, days, obrigValor, count, interval, dataInicio, dataFim });
         });
     }
 }

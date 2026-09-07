@@ -14,6 +14,8 @@ export interface ScheduleConfig {
     days?: number[];
     timeStart?: string;
     timeEnd?: string;
+    dataInicio?: string | null;
+    dataFim?: string | null;
     executionOrder?: any[];
 }
 
@@ -29,6 +31,8 @@ export class Schedule {
     days: number[];
     timeStart: string;
     timeEnd: string;
+    dataInicio: string | null;
+    dataFim: string | null;
     executionOrder: ExecutionInstance[];
 
     constructor(config: ScheduleConfig) {
@@ -47,6 +51,8 @@ export class Schedule {
         this.days = (config.days || []).filter(d => d >= 0 && d <= 6);
         this.timeStart = config.timeStart || '07:00';
         this.timeEnd = config.timeEnd || '08:00';
+        this.dataInicio = config.dataInicio || null;
+        this.dataFim = config.dataFim || null;
         this.executionOrder = (config.executionOrder || [])
             .map(i => i instanceof ExecutionInstance ? i : ExecutionInstance.fromJSON(i));
     }
@@ -92,6 +98,8 @@ export class Schedule {
             days: this.days,
             timeStart: this.timeStart,
             timeEnd: this.timeEnd,
+            dataInicio: this.dataInicio,
+            dataFim: this.dataFim,
             executionOrder: this.executionOrder.map(i => i.toJSON())
         };
     }

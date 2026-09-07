@@ -70,9 +70,9 @@ export class ScheduleController {
     private _openNewSchedule(): void {
         this._newView.show(this._ctx.getFluxos(), this._ctx.getVarConfig(), {
             onClose: () => this._showList(),
-            generateOrder: (template, obrigValor, count, date, timeStart, timeEnd, interval) => {
+            generateOrder: (template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim) => {
                 return this._ctx.scheduleManager.generateExecutionOrder(
-                    template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig()
+                    template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig(), dataInicio, dataFim
                 );
             },
             onGenerate: (result) => this._openPreview(result)
@@ -83,6 +83,7 @@ export class ScheduleController {
         flowName: string; order: ExecutionInstance[]; mode: ScheduleMode;
         date: string; timeStart: string; timeEnd: string; days: number[];
         obrigValor: string; count: number; interval: number;
+        dataInicio: string | null; dataFim: string | null;
     }): void {
         this._previewView.show(r.flowName, r.order, {
             onCancel: () => this._showList(),
@@ -97,6 +98,8 @@ export class ScheduleController {
                     timeStart: r.timeStart,
                     timeEnd: r.timeEnd,
                     days: r.days,
+                    dataInicio: r.dataInicio,
+                    dataFim: r.dataFim,
                     active: true,
                     executionOrder: r.order
                 });
