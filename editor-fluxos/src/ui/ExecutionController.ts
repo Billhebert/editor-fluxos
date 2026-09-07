@@ -2,11 +2,15 @@ import { Flow, VariablePool, RawAction } from '../domain';
 import { FlowExecutor } from '../use-cases/FlowExecutor';
 import { FlowRenderer } from './FlowRenderer';
 import { Toast } from './Toast';
-import { ipc } from '../infrastructure/IpcService';
+
+export interface ScheduledStatusSink {
+    updateInstanceStatus(scheduleId: string, instanceId: number, status: string): Promise<void>;
+}
 
 export interface ExecutionControllerContext {
     flowExecutor: FlowExecutor;
     varConfig: VariablePool;
+    statusSink: ScheduledStatusSink;
 }
 
 export class ExecutionController {
@@ -42,10 +46,10 @@ export class ExecutionController {
         const { scheduleId, instanceId, resolvedActions, flowName } = payload;
         try {
             await this._ctx.flowExecutor.executeActions(resolvedActions);
-            await ipc.updateInstanceStatus(scheduleId, instanceId, 'completed');
+            await this._ctx.statusSink.updateInstanceStatus(scheduleId, instanceId, 'completed');
             Toast.success(`${flowName} #${instanceId} concluido!`);
         } catch (err) {
-            await ipc.updateInstanceStatus(scheduleId, instanceId, 'failed');
+            await this._ctx.statusSink.updateInstanceStatus(scheduleId, instanceId, 'failed');
             Toast.error(`${flowName} #${instanceId} falhou!`);
         }
     }

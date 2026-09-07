@@ -7,3 +7,4 @@ export type { IEventBus } from './IEventBus';
 export { Events } from './IEventBus';
 export type { IUndoManager, UndoableActionPort } from './IUndoManager';
 export type { IFileSystem } from './IFileSystem';
+export type { IFileDialogService } from './IFileDialogService';

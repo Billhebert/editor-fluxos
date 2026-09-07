@@ -1,6 +1,6 @@
 import { Flow, RawAction } from './domain';
 import { FlowExecutor, ScheduleManager, FlowManager, FlowSanitizer } from './use-cases';
-import { LocalStorageFlowRepo, ElectronIpcExecutor, UndoManager, IpcScheduleRepo, eventBus } from './infrastructure';
+import { LocalStorageFlowRepo, ElectronIpcExecutor, UndoManager, IpcScheduleRepo, eventBus, NodeIpcFileDialog } from './infrastructure';
 import { ipc } from './infrastructure/IpcService';
 import { FlowRenderer, Toast, RecordingController, ScheduleController, VariableConfigController } from './ui';
 import { UpdateBadgeController } from './ui/modals/UpdateBadgeController';
@@ -74,11 +74,15 @@ export class App {
             refreshCache: () => this._refreshCache(),
             renderAll: () => this._renderAll(),
             saveToStorage: () => this._varManager.saveToStorage(),
+            fileDialog: new NodeIpcFileDialog(),
         });
 
         this._execCtrl = new ExecutionController({
             flowExecutor: this._flowExecutor,
             varConfig: this._varManager.varConfig,
+            statusSink: {
+                updateInstanceStatus: (scheduleId, instanceId, status) => ipc.updateInstanceStatus(scheduleId, instanceId, status),
+            },
         }, this._flowRenderer);
 
         this._scheduleCtrl = new ScheduleController({

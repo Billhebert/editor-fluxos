@@ -1,7 +1,7 @@
 import { Flow, RawAction } from '../domain';
 import { FlowManager } from '../use-cases/FlowManager';
+import { IFileDialogService } from '../adapters/IFileDialogService';
 import { Toast } from './Toast';
-import { ipc } from '../infrastructure/IpcService';
 
 export interface FileControllerContext {
     flowManager: FlowManager;
@@ -10,6 +10,7 @@ export interface FileControllerContext {
     refreshCache(): Promise<void>;
     renderAll(): Promise<void>;
     saveToStorage(): void;
+    fileDialog: IFileDialogService;
 }
 
 export class FileController {
@@ -23,7 +24,7 @@ export class FileController {
     get currentFilePath(): string | null { return this._currentFilePath; }
 
     async openFile(): Promise<void> {
-        const result = await ipc.openFile();
+        const result = await this._ctx.fileDialog.openFile();
         if (!result) return;
         this._currentFilePath = result.path;
         let loaded: Record<string, RawAction[]>;
@@ -46,7 +47,7 @@ export class FileController {
         await this._ctx.refreshCache();
         const json = JSON.stringify(this._ctx.fluxosCache, null, 2);
         const filePath = forceSaveAs ? null : this._currentFilePath;
-        const result = await ipc.saveFile(json, filePath);
+        const result = await this._ctx.fileDialog.saveFile(json, filePath);
         if (result) {
             this._currentFilePath = result;
             this._updateFileInfo();
