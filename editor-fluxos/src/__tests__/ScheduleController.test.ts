@@ -2,14 +2,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ScheduleController, ScheduleContext } from '../ui/ScheduleController';
 import { ScheduleManager } from '../use-cases/ScheduleManager';
-import { VariablePool } from '../domain';
+import { VariablePool, Schedule } from '../domain';
 
 vi.mock('../ui/Toast', () => ({
     Toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
 }));
 
 vi.mock('../ui/schedules/ScheduleListView', () => ({
-    ScheduleListView: class { show = vi.fn(); },
+    ScheduleListView: class {
+        show = vi.fn();
+        private _callbacks: any;
+        showWithCallbacks(schedules: any[], callbacks: any) {
+            this._callbacks = callbacks;
+            this.show(schedules, callbacks);
+        }
+    },
 }));
 
 vi.mock('../ui/schedules/ScheduleDetailView', () => ({
@@ -26,10 +33,12 @@ vi.mock('../ui/schedules/PreviewView', () => ({
 
 function createMockCtx(overrides: Partial<ScheduleContext> = {}): ScheduleContext {
     return {
-        getFluxos: vi.fn().mockReturnValue({}),
+        getFluxos: vi.fn().mockReturnValue({ flowA: [{ tipo: 'keyboard', tecla: 'enter' }] }),
         getVarConfig: vi.fn().mockReturnValue(new VariablePool()),
         scheduleManager: {
-            generateExecutionOrder: vi.fn().mockReturnValue([]),
+            generateExecutionOrder: vi.fn().mockReturnValue([
+                { flowName: 'flowA', scheduledTime: new Date().toISOString() }
+            ]),
         } as unknown as ScheduleManager,
         loadSchedules: vi.fn().mockResolvedValue([]),
         saveSchedules: vi.fn().mockResolvedValue(undefined),
@@ -66,5 +75,110 @@ describe('ScheduleController', () => {
         await ctrl.openSchedules();
 
         expect(ctrl.schedules).toHaveLength(1);
+    });
+
+    it('onNew triggers new schedule view', async () => {
+        await ctrl.openSchedules();
+
+        const listView = (ctrl as any)._listView;
+        const showCall = listView.show.mock.calls[0];
+        const callbacks = showCall[1];
+
+        callbacks.onNew();
+
+        const newView = (ctrl as any)._newView;
+        expect(newView.show).toHaveBeenCalled();
+    });
+
+    it('onToggle updates schedule active state and persists', async () => {
+        const schedule = new Schedule({
+            flowName: 'flowA', obrigatorioValor: '', repeticoes: 1,
+            intervaloMinimo: 0, mode: 'one-shot', date: '2026-01-01',
+            timeStart: '09:00', timeEnd: '18:00', days: [],
+            active: true, executionOrder: [],
+        });
+        vi.mocked(ctx.loadSchedules).mockResolvedValue([schedule]);
+        await ctrl.openSchedules();
+
+        const listView = (ctrl as any)._listView;
+        const showCall = listView.show.mock.calls[0];
+        const callbacks = showCall[1];
+
+        await callbacks.onToggle(schedule, false);
+
+        expect(schedule.active).toBe(false);
+        expect(ctx.saveSchedules).toHaveBeenCalled();
+    });
+
+    it('onRemove deletes schedule after confirm', async () => {
+        const schedule = new Schedule({
+            flowName: 'flowA', obrigatorioValor: '', repeticoes: 1,
+            intervaloMinimo: 0, mode: 'one-shot', date: '2026-01-01',
+            timeStart: '09:00', timeEnd: '18:00', days: [],
+            active: true, executionOrder: [],
+        });
+        vi.mocked(ctx.loadSchedules).mockResolvedValue([schedule]);
+        vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+
+        await ctrl.openSchedules();
+
+        const listView = (ctrl as any)._listView;
+        const callbacks = listView.show.mock.calls[0][1];
+
+        await callbacks.onRemove(0);
+
+        expect(ctrl.schedules).toHaveLength(0);
+        expect(ctx.saveSchedules).toHaveBeenCalled();
+
+        vi.mocked(globalThis.confirm).mockRestore();
+    });
+
+    it('onRemove does nothing when confirm is cancelled', async () => {
+        const schedule = new Schedule({
+            flowName: 'flowA', obrigatorioValor: '', repeticoes: 1,
+            intervaloMinimo: 0, mode: 'one-shot', date: '2026-01-01',
+            timeStart: '09:00', timeEnd: '18:00', days: [],
+            active: true, executionOrder: [],
+        });
+        vi.mocked(ctx.loadSchedules).mockResolvedValue([schedule]);
+        vi.spyOn(globalThis, 'confirm').mockReturnValue(false);
+
+        await ctrl.openSchedules();
+
+        const listView = (ctrl as any)._listView;
+        const callbacks = listView.show.mock.calls[0][1];
+
+        await callbacks.onRemove(0);
+
+        expect(ctrl.schedules).toHaveLength(1);
+        vi.mocked(globalThis.confirm).mockRestore();
+    });
+
+    it('onView opens detail view', async () => {
+        const schedule = new Schedule({
+            flowName: 'flowA', obrigatorioValor: '', repeticoes: 1,
+            intervaloMinimo: 0, mode: 'one-shot', date: '2026-01-01',
+            timeStart: '09:00', timeEnd: '18:00', days: [],
+            active: true, executionOrder: [],
+        });
+        vi.mocked(ctx.loadSchedules).mockResolvedValue([schedule]);
+        await ctrl.openSchedules();
+
+        const listView = (ctrl as any)._listView;
+        const callbacks = listView.show.mock.calls[0][1];
+
+        callbacks.onView(schedule);
+
+        const detailView = (ctrl as any)._detailView;
+        expect(detailView.show).toHaveBeenCalledWith(schedule, expect.any(Object));
+    });
+
+    it('onClose in list view is a no-op', async () => {
+        await ctrl.openSchedules();
+
+        const listView = (ctrl as any)._listView;
+        const callbacks = listView.show.mock.calls[0][1];
+
+        expect(() => callbacks.onClose()).not.toThrow();
     });
 });

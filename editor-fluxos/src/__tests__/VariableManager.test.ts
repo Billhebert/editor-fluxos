@@ -13,6 +13,8 @@ function createMockCtx(overrides: Partial<VariableManagerContext> = {}): Variabl
         varConfigRepo: {
             loadVarConfig: vi.fn().mockReturnValue({ obrigatorias: [], opcionais: [] }),
             saveVarConfig: vi.fn(),
+            loadVariables: vi.fn().mockReturnValue([]),
+            saveVariables: vi.fn(),
         } as unknown as IVariableConfigRepository,
         recording: {
             addToQueue: vi.fn(),
@@ -27,7 +29,6 @@ describe('VariableManager', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        localStorage.clear();
         ctx = createMockCtx();
         vm = new VariableManager(ctx);
     });
@@ -46,16 +47,16 @@ describe('VariableManager', () => {
         expect(vm.varConfig).toBe(pool);
     });
 
-    it('loadFromStorage loads variables from localStorage', () => {
-        localStorage.setItem('fluxos_variables', JSON.stringify(['var1', 'var2']));
+    it('loadFromStorage loads variables from repo', () => {
+        vi.mocked(ctx.varConfigRepo.loadVariables).mockReturnValue(['var1', 'var2']);
 
         vm.loadFromStorage();
 
         expect(vm.variables).toEqual(['var1', 'var2']);
     });
 
-    it('loadFromStorage handles invalid JSON gracefully', () => {
-        localStorage.setItem('fluxos_variables', 'not-json');
+    it('loadFromStorage handles repo error gracefully', () => {
+        vi.mocked(ctx.varConfigRepo.loadVariables).mockImplementation(() => { throw new Error('fail'); });
 
         vm.loadFromStorage();
 
@@ -71,7 +72,7 @@ describe('VariableManager', () => {
         expect(ctx.varConfigRepo.loadVarConfig).toHaveBeenCalled();
     });
 
-    it('loadFromStorage handles repo error gracefully', () => {
+    it('loadFromStorage handles varConfig repo error gracefully', () => {
         vi.mocked(ctx.varConfigRepo.loadVarConfig).mockImplementation(() => { throw new Error('fail'); });
 
         vm.loadFromStorage();
@@ -79,12 +80,11 @@ describe('VariableManager', () => {
         expect(vm.varConfig).toBeInstanceOf(VariablePool);
     });
 
-    it('saveToStorage persists variables and varConfig', () => {
-        vm.loadFromStorage();
+    it('saveToStorage persists via repo', () => {
         (vm as any)._variables = ['saved-var'];
         vm.saveToStorage();
 
-        expect(localStorage.getItem('fluxos_variables')).toContain('saved-var');
-        expect(localStorage.getItem('fluxos_var_config')).toBeTruthy();
+        expect(ctx.varConfigRepo.saveVariables).toHaveBeenCalledWith(['saved-var']);
+        expect(ctx.varConfigRepo.saveVarConfig).toHaveBeenCalled();
     });
 });

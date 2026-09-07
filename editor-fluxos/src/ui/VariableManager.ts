@@ -23,8 +23,7 @@ export class VariableManager {
 
     loadFromStorage(): void {
         try {
-            const raw = localStorage.getItem('fluxos_variables');
-            if (raw) this._variables = JSON.parse(raw);
+            this._variables = this._ctx.varConfigRepo.loadVariables();
         } catch { this._variables = []; }
 
         try {
@@ -34,8 +33,8 @@ export class VariableManager {
     }
 
     saveToStorage(): void {
-        localStorage.setItem('fluxos_variables', JSON.stringify(this._variables));
-        localStorage.setItem('fluxos_var_config', JSON.stringify(this._varConfig.toJSON()));
+        this._ctx.varConfigRepo.saveVariables(this._variables);
+        this._ctx.varConfigRepo.saveVarConfig(this._varConfig.toJSON());
     }
 
     addVariable(): void {
