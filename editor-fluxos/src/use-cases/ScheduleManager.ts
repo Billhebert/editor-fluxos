@@ -4,12 +4,18 @@ import { VariablePool } from '../domain/VariablePool';
 import { RawAction, InstanceStatus } from '../domain/types';
 import { IScheduleRepository } from '../adapters/IScheduleRepository';
 import { NotFoundError } from '../domain/errors';
+import { VariableResolver } from './VariableResolver';
 
 export class ScheduleManager {
     private _repo: IScheduleRepository;
+    private _resolverFactory: (pool: VariablePool) => VariableResolver;
 
-    constructor(scheduleRepository: IScheduleRepository) {
+    constructor(
+        scheduleRepository: IScheduleRepository,
+        resolverFactory?: (pool: VariablePool) => VariableResolver
+    ) {
         this._repo = scheduleRepository;
+        this._resolverFactory = resolverFactory || ((pool) => new VariableResolver(pool));
     }
 
     async getAllSchedules(): Promise<Schedule[]> {
@@ -99,13 +105,8 @@ export class ScheduleManager {
             throw new Error(`timeEnd (${timeEnd}) must be after timeStart (${timeStart})`);
         }
 
-        const poolOpcionais = variablePool
-            ? [...variablePool.opcionais].sort(() => Math.random() - 0.5)
-            : [];
-        let opcPool = [...poolOpcionais];
-
         const minIntervalMs = Math.max(intervaloMinimo, 1) * 1000;
-
+        const resolver = this._resolverFactory(variablePool || new VariablePool());
         let instanceId = 0;
 
         if (dataInicio && dataFim) {
@@ -143,10 +144,10 @@ export class ScheduleManager {
                 }
             }
 
+            const resolved = resolver.resolveTemplate(template, obrigatorioValor);
             return allTimestamps.map((ts) => {
                 instanceId++;
-                const resolved = this._resolveActions(template, obrigatorioValor, poolOpcionais, opcPool);
-                return new ExecutionInstance(instanceId, ts, resolved);
+                return new ExecutionInstance(instanceId, ts, [...resolved]);
             });
         }
 
@@ -173,33 +174,10 @@ export class ScheduleManager {
             }
         }
 
+        const resolved = resolver.resolveTemplate(template, obrigatorioValor);
         return timestamps.map((ts) => {
             instanceId++;
-            const resolved = this._resolveActions(template, obrigatorioValor, poolOpcionais, opcPool);
-            return new ExecutionInstance(instanceId, ts, resolved);
-        });
-    }
-
-    private _resolveActions(template: RawAction[], obrigatorioValor: string, poolOpcionais: { nome: string; valor: string }[], opcPool: { nome: string; valor: string }[]): RawAction[] {
-        const usedOpcionais = new Set<string>();
-        return template.map(raw => {
-            if (raw === 'ITEM_OBRIGATORIO') return obrigatorioValor || '[SEM ITEM]';
-            if (raw === 'ITEM_OPCIONAL') {
-                if (opcPool.length === 0) opcPool = [...poolOpcionais].sort(() => Math.random() - 0.5);
-                let pick = opcPool.shift();
-                let attempts = 0;
-                while (pick && usedOpcionais.has(pick.valor) && attempts < opcPool.length + 1) {
-                    opcPool.push(pick);
-                    pick = opcPool.shift();
-                    attempts++;
-                }
-                if (pick && !usedOpcionais.has(pick.valor)) {
-                    usedOpcionais.add(pick.valor);
-                    return pick.valor;
-                }
-                return pick?.valor || '[SEM OPCIONAL]';
-            }
-            return raw;
+            return new ExecutionInstance(instanceId, ts, [...resolved]);
         });
     }
 }

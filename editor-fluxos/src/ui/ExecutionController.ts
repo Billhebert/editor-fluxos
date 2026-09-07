@@ -1,0 +1,52 @@
+import { Flow, VariablePool, RawAction } from '../domain';
+import { FlowExecutor } from '../use-cases/FlowExecutor';
+import { FlowRenderer } from './FlowRenderer';
+import { Toast } from './Toast';
+import { ipc } from '../infrastructure/IpcService';
+
+export interface ExecutionControllerContext {
+    flowExecutor: FlowExecutor;
+    varConfig: VariablePool;
+}
+
+export class ExecutionController {
+    private _ctx: ExecutionControllerContext;
+    private _flowRenderer: FlowRenderer;
+
+    constructor(ctx: ExecutionControllerContext, flowRenderer: FlowRenderer) {
+        this._ctx = ctx;
+        this._flowRenderer = flowRenderer;
+    }
+
+    async executeFlow(flowName: string, rawActions: RawAction[]): Promise<void> {
+        if (this._ctx.flowExecutor.isRunning) { alert('Ja existe uma execucao em andamento!'); return; }
+
+        const flow = new Flow(flowName, rawActions);
+
+        try {
+            this._flowRenderer.setRunning(flowName, true);
+            await this._ctx.flowExecutor.execute(flow, this._ctx.varConfig,
+                (i) => this._flowRenderer.highlightAction(flowName, i, true),
+                (i) => this._flowRenderer.highlightAction(flowName, i, false)
+            );
+            Toast.success(`Fluxo "${flowName}" concluido!`);
+        } catch (err: any) {
+            Toast.error(`Erro ao executar: ${err.message}`);
+        } finally {
+            this._flowRenderer.setRunning(flowName, false);
+            this._flowRenderer.clearHighlights(flowName);
+        }
+    }
+
+    async executeScheduledInstance(payload: any): Promise<void> {
+        const { scheduleId, instanceId, resolvedActions, flowName } = payload;
+        try {
+            await this._ctx.flowExecutor.executeActions(resolvedActions);
+            await ipc.updateInstanceStatus(scheduleId, instanceId, 'completed');
+            Toast.success(`${flowName} #${instanceId} concluido!`);
+        } catch (err) {
+            await ipc.updateInstanceStatus(scheduleId, instanceId, 'failed');
+            Toast.error(`${flowName} #${instanceId} falhou!`);
+        }
+    }
+}

@@ -76,6 +76,7 @@ export class VariablePool {
 
         return {
             next(): string {
+                if (shuffled.length === 0) return '[SEM OPCIONAL]';
                 if (pool.length === 0) {
                     pool = [...shuffled].sort(() => Math.random() - 0.5);
                 }

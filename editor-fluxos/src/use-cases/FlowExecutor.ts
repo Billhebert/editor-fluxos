@@ -13,11 +13,16 @@ export interface ActionError {
 
 export class FlowExecutor {
     private _executor: IActionExecutor;
+    private _resolverFactory: (pool: VariablePool) => VariableResolver;
     private _isRunning: boolean = false;
     private _shouldStop: boolean = false;
 
-    constructor(actionExecutor: IActionExecutor) {
+    constructor(
+        actionExecutor: IActionExecutor,
+        resolverFactory?: (pool: VariablePool) => VariableResolver
+    ) {
         this._executor = actionExecutor;
+        this._resolverFactory = resolverFactory || ((pool) => new VariableResolver(pool));
     }
 
     get isRunning(): boolean { return this._isRunning; }
@@ -29,7 +34,7 @@ export class FlowExecutor {
         onActionEnd?: (index: number, action: RawAction) => void,
         onActionError?: (err: ActionError) => void
     ): Promise<void> {
-        const resolver = new VariableResolver(variablePool);
+        const resolver = this._resolverFactory(variablePool);
         const resolvedActions = resolver.resolveForRuntime(flow.actions);
         return this.executeActions(resolvedActions, onActionStart, onActionEnd, onActionError);
     }
