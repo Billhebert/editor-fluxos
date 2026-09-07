@@ -229,6 +229,26 @@ describe('FLUXO E2E', () => {
         });
     });
 
+    describe('Execucao de Fluxo', () => {
+        it('executa acoes gravadas no fluxo', async () => {
+            await createFlow('exec_flow');
+            await openRecordingFor('exec_flow');
+            await page.click('.recording-tab[data-arg="delay"]');
+            await page.fill('#delayInput', '300');
+            await page.click('[data-action="add-delay-action"]');
+            await page.click('[data-action="add-queue-to-fluxo"]');
+            await page.waitForSelector('.fluxo-card[data-name="exec_flow"] .action-list .action-item');
+            await page.click('[data-action="close-recording"]');
+
+            const start = Date.now();
+            await page.click('.fluxo-card[data-name="exec_flow"] .btn-exec');
+            await page.waitForSelector('#toastContainer .toast.success:has-text("concluido")', { timeout: 10000 });
+            const elapsed = Date.now() - start;
+
+            expect(elapsed).toBeGreaterThanOrEqual(250);
+        });
+    });
+
     describe('Configuracao de Variaveis', () => {
         it('abre modal com estrutura', async () => {
             await page.click('[data-action="open-var-config"]');

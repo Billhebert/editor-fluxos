@@ -48,6 +48,8 @@ export class FlowRenderer {
         if (!list) return;
         list.dataset.fluxo = name;
 
+        this._refreshExecButton(card, name, actions, callbacks);
+
         const existingItems = new Map<string, HTMLElement>();
         for (const child of Array.from(list.children)) {
             const el = child as HTMLElement;
@@ -80,6 +82,18 @@ export class FlowRenderer {
         if (textNode && textNode.nodeType === Node.TEXT_NODE && textNode.textContent !== label) {
             textNode.textContent = label;
         }
+    }
+
+    private _refreshExecButton(card: HTMLElement, name: string, actions: RawAction[], callbacks: FlowRendererCallbacks): void {
+        const execBtn = card.querySelector('.btn-exec') as HTMLElement | null;
+        if (!execBtn) return;
+        const newBtn = document.createElement('button');
+        newBtn.className = execBtn.className;
+        newBtn.textContent = execBtn.textContent || '▶ Executar';
+        newBtn.addEventListener('click', () => {
+            if (callbacks.onExecute) callbacks.onExecute(name, actions);
+        });
+        execBtn.replaceWith(newBtn);
     }
 
     private _createCard(name: string, actions: RawAction[], callbacks: FlowRendererCallbacks): HTMLElement {
