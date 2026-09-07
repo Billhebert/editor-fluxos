@@ -168,4 +168,47 @@ describe('FlowManager', () => {
             expect(flow).toBeNull();
         });
     });
+
+    describe('addActions - error cases', () => {
+        it('throws NotFoundError when flow does not exist', async () => {
+            await expect(manager.addActions('ghost', ['enter', 'click'])).rejects.toThrow(NotFoundError);
+        });
+
+        it('undo lambda removes added actions', async () => {
+            await manager.createFlow('my-flow');
+            await manager.addActions('my-flow', ['enter', 'click', 'wait']);
+
+            const undoCall = vi.mocked(undo.execute).mock.calls[1][0];
+            await undoCall.undo();
+
+            const flow = await repo.findByName('my-flow');
+            expect(flow).not.toBeNull();
+            expect(flow!.actions).toHaveLength(0);
+        });
+    });
+
+    describe('removeAction - error cases', () => {
+        it('throws ValidationError when index is out of range', async () => {
+            await manager.createFlow('my-flow');
+            const { ValidationError } = await import('../domain/errors');
+            await expect(manager.removeAction('my-flow', 5)).rejects.toThrow(ValidationError);
+        });
+    });
+
+    describe('moveAction - error cases', () => {
+        it('throws NotFoundError when flow does not exist', async () => {
+            await expect(manager.moveAction('ghost', 0, 1)).rejects.toThrow(NotFoundError);
+        });
+    });
+
+    describe('saveAllFlows', () => {
+        it('saves all flows to the repository', async () => {
+            await manager.createFlow('f1');
+            await manager.createFlow('f2');
+            vi.mocked(repo.saveAll).mockClear();
+            const flows = await manager.getAllFlows();
+            await manager.saveAllFlows(flows);
+            expect(repo.saveAll).toHaveBeenCalledWith(flows);
+        });
+    });
 });

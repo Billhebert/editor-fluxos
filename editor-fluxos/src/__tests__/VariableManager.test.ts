@@ -87,4 +87,27 @@ describe('VariableManager', () => {
         expect(ctx.varConfigRepo.saveVariables).toHaveBeenCalledWith(['saved-var']);
         expect(ctx.varConfigRepo.saveVarConfig).toHaveBeenCalled();
     });
+
+    describe('_addVariableValue', () => {
+        it('adds variable to list', () => {
+            vm._addVariableValue('newVar');
+            expect(vm.variables).toContain('newVar');
+        });
+
+        it('does not add duplicate', () => {
+            vm._addVariableValue('dupVar');
+            vm._addVariableValue('dupVar');
+            expect(vm.variables.filter(v => v === 'dupVar')).toHaveLength(1);
+        });
+
+        it('calls renderVariables and saveToStorage after adding', () => {
+            const renderSpy = vi.spyOn(vm, 'renderVariables');
+            const saveSpy = vi.spyOn(vm, 'saveToStorage');
+
+            vm._addVariableValue('testVar');
+
+            expect(renderSpy).toHaveBeenCalled();
+            expect(saveSpy).toHaveBeenCalled();
+        });
+    });
 });

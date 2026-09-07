@@ -85,6 +85,54 @@ describe('Schedule', () => {
         expect(sch.active).toBe(false);
     });
 
+    it('failedCount returns count of failed instances', () => {
+        const sch = new Schedule({
+            flowName: 't',
+            executionOrder: [
+                { id: 1, gatilho_timeStamp: 1000, status: 'completed', resolvedActions: [] },
+                { id: 2, gatilho_timeStamp: 2000, status: 'failed', resolvedActions: [] },
+                { id: 3, gatilho_timeStamp: 3000, status: 'failed', resolvedActions: [] },
+                { id: 4, gatilho_timeStamp: 4000, status: 'pending', resolvedActions: [] }
+            ]
+        });
+        expect(sch.failedCount).toBe(2);
+    });
+
+    it('failedCount returns 0 when no failed instances', () => {
+        const sch = new Schedule({
+            flowName: 't',
+            executionOrder: [
+                { id: 1, gatilho_timeStamp: 1000, status: 'completed', resolvedActions: [] },
+                { id: 2, gatilho_timeStamp: 2000, status: 'pending', resolvedActions: [] }
+            ]
+        });
+        expect(sch.failedCount).toBe(0);
+    });
+
+    it('findInstance returns instance by id', () => {
+        const sch = new Schedule({
+            flowName: 't',
+            executionOrder: [
+                { id: 1, gatilho_timeStamp: 1000, status: 'completed', resolvedActions: [] },
+                { id: 2, gatilho_timeStamp: 2000, status: 'pending', resolvedActions: [] }
+            ]
+        });
+        const instance = sch.findInstance(2);
+        expect(instance).toBeDefined();
+        expect(instance!.id).toBe(2);
+        expect(instance!.status).toBe('pending');
+    });
+
+    it('findInstance returns undefined for missing id', () => {
+        const sch = new Schedule({
+            flowName: 't',
+            executionOrder: [
+                { id: 1, gatilho_timeStamp: 1000, status: 'completed', resolvedActions: [] }
+            ]
+        });
+        expect(sch.findInstance(999)).toBeUndefined();
+    });
+
     it('toJSON / fromJSON round-trip', () => {
         const sch = new Schedule({
             flowName: 'test',

@@ -37,17 +37,20 @@ export class VariableManager {
         this._ctx.varConfigRepo.saveVarConfig(this._varConfig.toJSON());
     }
 
-    addVariable(): void {
-        const input = document.getElementById('varInput') as HTMLInputElement;
-        if (!input) return;
-        const name = input.value.trim();
-        if (!name) return;
+    addVariable(name?: string): void {
+        const input = name === undefined ? document.getElementById('varInput') as HTMLInputElement : null;
+        const value = name !== undefined ? name : (input?.value || '').trim();
+        if (!value) return;
+        this._addVariableValue(value);
+        if (input) input.value = '';
+    }
+
+    _addVariableValue(name: string): void {
         if (!this._variables.includes(name)) {
             this._variables.push(name);
             this.renderVariables();
             this.saveToStorage();
         }
-        input.value = '';
     }
 
     renderVariables(): void {

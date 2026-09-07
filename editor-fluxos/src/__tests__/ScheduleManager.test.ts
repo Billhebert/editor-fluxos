@@ -171,4 +171,179 @@ describe('ScheduleManager', () => {
             });
         });
     });
+
+    describe('getAllSchedules', () => {
+        it('returns all schedules from repo', async () => {
+            const s1 = { id: 'sch_1', flowName: 'a', executionOrder: [] } as any;
+            const s2 = { id: 'sch_2', flowName: 'b', executionOrder: [] } as any;
+            (repo.save as any)(s1);
+            (repo.save as any)(s2);
+
+            const result = await manager.getAllSchedules();
+            expect(result).toHaveLength(2);
+            expect(result).toEqual([s1, s2]);
+        });
+
+        it('returns empty array when repo is empty', async () => {
+            const result = await manager.getAllSchedules();
+            expect(result).toHaveLength(0);
+        });
+    });
+
+    describe('getSchedule', () => {
+        it('returns schedule by id', async () => {
+            const s = { id: 'sch_1', flowName: 'x', executionOrder: [] } as any;
+            (repo.save as any)(s);
+
+            const result = await manager.getSchedule('sch_1');
+            expect(result).toBe(s);
+        });
+
+        it('returns null for missing id', async () => {
+            const result = await manager.getSchedule('nonexistent');
+            expect(result).toBeNull();
+        });
+    });
+
+    describe('createSchedule', () => {
+        it('creates schedule with generated execution order and saves to repo', async () => {
+            const config = {
+                flowName: 'test-flow',
+                obrigatorioValor: 'item_A',
+                repeticoes: 3,
+                date: '2026-09-07',
+                timeStart: '08:00',
+                timeEnd: '12:00',
+                intervaloMinimo: 60,
+            };
+
+            const result = await manager.createSchedule(config, ['ITEM_OBRIGATORIO', 'click'], pool);
+
+            expect(result.flowName).toBe('test-flow');
+            expect(result.executionOrder).toHaveLength(3);
+            expect(result.executionOrder[0].resolvedActions).toEqual(['item_A', 'click']);
+            expect(repo.save).toHaveBeenCalledTimes(1);
+        });
+
+        it('uses default values when config fields are missing', async () => {
+            const config = { flowName: 'minimal' };
+
+            const result = await manager.createSchedule(config, ['enter'], pool);
+
+            expect(result.obrigatorioValor).toBe('');
+            expect(result.repeticoes).toBe(1);
+            expect(result.timeStart).toBe('07:00');
+            expect(result.timeEnd).toBe('08:00');
+            expect(result.executionOrder).toHaveLength(1);
+        });
+    });
+
+    describe('updateSchedule', () => {
+        it('saves schedule to repo', async () => {
+            const s = { id: 'sch_1', flowName: 'updated', executionOrder: [] } as any;
+
+            const result = await manager.updateSchedule(s);
+
+            expect(repo.save).toHaveBeenCalledWith(s);
+            expect(result).toBe(s);
+        });
+    });
+
+    describe('deleteSchedule', () => {
+        it('deletes schedule from repo by id', async () => {
+            const s = { id: 'sch_1', flowName: 'doomed', executionOrder: [] } as any;
+            (repo.save as any)(s);
+
+            await manager.deleteSchedule('sch_1');
+            expect(repo.delete).toHaveBeenCalledWith('sch_1');
+            const result = await manager.getSchedule('sch_1');
+            expect(result).toBeNull();
+        });
+    });
+
+    describe('toggleSchedule', () => {
+        it('toggles active to true on schedule', async () => {
+            const s = { id: 'sch_1', flowName: 't', executionOrder: [], active: false, toggleActive: vi.fn() } as any;
+            (repo.save as any)(s);
+
+            const result = await manager.toggleSchedule('sch_1', true);
+
+            expect(s.toggleActive).toHaveBeenCalledWith(true);
+            expect(repo.save).toHaveBeenCalledWith(s);
+        });
+
+        it('toggles active to false on schedule', async () => {
+            const s = { id: 'sch_1', flowName: 't', executionOrder: [], active: true, toggleActive: vi.fn() } as any;
+            (repo.save as any)(s);
+
+            const result = await manager.toggleSchedule('sch_1', false);
+
+            expect(s.toggleActive).toHaveBeenCalledWith(false);
+            expect(repo.save).toHaveBeenCalledWith(s);
+        });
+
+        it('throws NotFoundError for missing id', async () => {
+            await expect(manager.toggleSchedule('nonexistent', true))
+                .rejects.toThrow('Not found: Schedule "nonexistent"');
+        });
+    });
+
+    describe('findDueSchedules', () => {
+        it('returns only due instances with past gatilhoTime', async () => {
+            const past = Date.now() - 10_000;
+            const future = Date.now() + 100_000;
+            const sch = { id: 'sch_1', flowName: 'f', active: true, executionOrder: [
+                { id: 1, gatilhoTime: past, status: 'pending', isDue: (now: number) => now >= past },
+                { id: 2, gatilhoTime: future, status: 'pending', isDue: (now: number) => false },
+            ] } as any;
+            (repo.save as any)(sch);
+
+            const result = await manager.findDueSchedules();
+            expect(result).toHaveLength(1);
+            expect(result[0].schedule).toBe(sch);
+            expect(result[0].instance.id).toBe(1);
+        });
+
+        it('skips inactive schedules entirely', async () => {
+            const past = Date.now() - 10_000;
+            const sch = { id: 'sch_1', flowName: 'f', active: false, executionOrder: [
+                { id: 1, gatilhoTime: past, status: 'pending', isDue: () => true },
+            ] } as any;
+            (repo.save as any)(sch);
+
+            const result = await manager.findDueSchedules();
+            expect(result).toHaveLength(0);
+        });
+
+        it('returns empty array when no schedules exist', async () => {
+            const result = await manager.findDueSchedules();
+            expect(result).toHaveLength(0);
+        });
+
+        it('skips non-pending instances even if time has passed', async () => {
+            const past = Date.now() - 10_000;
+            const sch = { id: 'sch_1', flowName: 'f', active: true, executionOrder: [
+                { id: 1, gatilhoTime: past, status: 'completed', isDue: () => false },
+                { id: 2, gatilhoTime: past, status: 'pending', isDue: (now: number) => now >= past },
+            ] } as any;
+            (repo.save as any)(sch);
+
+            const result = await manager.findDueSchedules();
+            expect(result).toHaveLength(1);
+            expect(result[0].instance.id).toBe(2);
+        });
+    });
+
+    describe('updateInstanceStatus', () => {
+        it('delegates to repo with correct params', async () => {
+            await manager.updateInstanceStatus('sch_1', 3, 'running');
+            expect(repo.updateInstanceStatus).toHaveBeenCalledWith('sch_1', 3, 'running');
+        });
+
+        it('propagates repo error', async () => {
+            (repo.updateInstanceStatus as any).mockRejectedValueOnce(new Error('db fail'));
+            await expect(manager.updateInstanceStatus('sch_1', 1, 'completed'))
+                .rejects.toThrow('db fail');
+        });
+    });
 });

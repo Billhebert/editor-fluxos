@@ -118,6 +118,105 @@ describe('VariablePool', () => {
         expect(pool.hasOpcional).toBe(false);
     });
 
+    it('updates obrigatorio at index', () => {
+        const pool = new VariablePool();
+        pool.addObrigatorio('a', 'v1');
+        pool.addObrigatorio('b', 'v2');
+        pool.updateObrigatorio(1, 'c', 'v3');
+        expect(pool.obrigatorias[1]).toEqual({ nome: 'c', valor: 'v3' });
+        expect(pool.obrigatorias).toHaveLength(2);
+    });
+
+    it('updateObrigatorio trims whitespace', () => {
+        const pool = new VariablePool();
+        pool.addObrigatorio('n', 'v');
+        pool.updateObrigatorio(0, '  new  ', '  newv  ');
+        expect(pool.obrigatorias[0]).toEqual({ nome: 'new', valor: 'newv' });
+    });
+
+    it('updateObrigatorio throws for out of range index', () => {
+        const pool = new VariablePool();
+        expect(() => pool.updateObrigatorio(5, 'n', 'v')).toThrow(ValidationError);
+    });
+
+    it('updateObrigatorio throws for empty nome', () => {
+        const pool = new VariablePool();
+        pool.addObrigatorio('n', 'v');
+        expect(() => pool.updateObrigatorio(0, '', 'v')).toThrow(ValidationError);
+    });
+
+    it('updateObrigatorio throws for empty valor', () => {
+        const pool = new VariablePool();
+        pool.addObrigatorio('n', 'v');
+        expect(() => pool.updateObrigatorio(0, 'n', '')).toThrow(ValidationError);
+    });
+
+    it('removeOpcional throws for out of range index', () => {
+        const pool = new VariablePool();
+        expect(() => pool.removeOpcional(0)).toThrow(ValidationError);
+    });
+
+    it('updates opcional at index', () => {
+        const pool = new VariablePool();
+        pool.addOpcional('a', 'v1');
+        pool.addOpcional('b', 'v2');
+        pool.updateOpcional(0, 'c', 'v3');
+        expect(pool.opcionais[0]).toEqual({ nome: 'c', valor: 'v3' });
+        expect(pool.opcionais).toHaveLength(2);
+    });
+
+    it('updateOpcional trims whitespace', () => {
+        const pool = new VariablePool();
+        pool.addOpcional('n', 'v');
+        pool.updateOpcional(0, '  new  ', '  newv  ');
+        expect(pool.opcionais[0]).toEqual({ nome: 'new', valor: 'newv' });
+    });
+
+    it('updateOpcional throws for out of range index', () => {
+        const pool = new VariablePool();
+        expect(() => pool.updateOpcional(5, 'n', 'v')).toThrow(ValidationError);
+    });
+
+    it('updateOpcional throws for empty nome', () => {
+        const pool = new VariablePool();
+        pool.addOpcional('n', 'v');
+        expect(() => pool.updateOpcional(0, '', 'v')).toThrow(ValidationError);
+    });
+
+    it('updateOpcional throws for empty valor', () => {
+        const pool = new VariablePool();
+        pool.addOpcional('n', 'v');
+        expect(() => pool.updateOpcional(0, 'n', '')).toThrow(ValidationError);
+    });
+
+    it('findObrigatorioByValor returns match when found', () => {
+        const pool = new VariablePool();
+        pool.addObrigatorio('n1', 'v1');
+        pool.addObrigatorio('n2', 'v2');
+        const result = pool.findObrigatorioByValor('v2');
+        expect(result).toEqual({ nome: 'n2', valor: 'v2' });
+    });
+
+    it('findObrigatorioByValor returns undefined when not found', () => {
+        const pool = new VariablePool();
+        pool.addObrigatorio('n1', 'v1');
+        expect(pool.findObrigatorioByValor('missing')).toBeUndefined();
+    });
+
+    it('findOpcionalByValor returns match when found', () => {
+        const pool = new VariablePool();
+        pool.addOpcional('a', 'val1');
+        pool.addOpcional('b', 'val2');
+        const result = pool.findOpcionalByValor('val1');
+        expect(result).toEqual({ nome: 'a', valor: 'val1' });
+    });
+
+    it('findOpcionalByValor returns undefined when not found', () => {
+        const pool = new VariablePool();
+        pool.addOpcional('a', 'val1');
+        expect(pool.findOpcionalByValor('missing')).toBeUndefined();
+    });
+
     it('toJSON / fromJSON round-trip', () => {
         const pool = new VariablePool({
             obrigatorias: [{ nome: 'n', valor: 'v' }],

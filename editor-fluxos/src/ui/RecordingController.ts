@@ -74,11 +74,14 @@ export class RecordingController {
 
     toggleKeyRecording(): void {
         this._isKeyRecording = !this._isKeyRecording;
+        this._updateKeyRecButton();
+    }
+
+    private _updateKeyRecButton(): void {
         const btn = document.getElementById('keyRecBtn') as HTMLButtonElement;
-        if (btn) {
-            btn.textContent = this._isKeyRecording ? '⏹ Parar' : '⏺ Gravar Fisico';
-            btn.className = this._isKeyRecording ? 'btn btn-danger btn-sm recording-active' : 'btn btn-warning btn-sm';
-        }
+        if (!btn) return;
+        btn.textContent = this._isKeyRecording ? '⏹ Parar' : '⏺ Gravar Fisico';
+        btn.className = this._isKeyRecording ? 'btn btn-danger btn-sm recording-active' : 'btn btn-warning btn-sm';
     }
 
     addMouseAction(type: string): void {
@@ -91,21 +94,21 @@ export class RecordingController {
 
     async toggleGlobalCapture(): Promise<void> {
         this._isGlobalCapture = !this._isGlobalCapture;
-        const btn = document.getElementById('globalCaptureBtn') as HTMLButtonElement;
         if (this._isGlobalCapture) {
             await this._ctx.registerCapture('CommandOrControl+Shift+C');
-            if (btn) {
-                btn.textContent = '⏹ Parar Captura';
-                btn.className = 'btn btn-danger btn-sm recording-active';
-            }
+            this._updateGlobalCaptureBtn(true);
             Toast.info('Ctrl+Shift+C em qualquer lugar para capturar mouse');
         } else {
             await this._ctx.unregisterCapture();
-            if (btn) {
-                btn.textContent = '🖱 Captura Global';
-                btn.className = 'btn btn-warning btn-sm';
-            }
+            this._updateGlobalCaptureBtn(false);
         }
+    }
+
+    private _updateGlobalCaptureBtn(active: boolean): void {
+        const btn = document.getElementById('globalCaptureBtn') as HTMLButtonElement;
+        if (!btn) return;
+        btn.textContent = active ? '⏹ Parar Captura' : '🖱 Captura Global';
+        btn.className = active ? 'btn btn-danger btn-sm recording-active' : 'btn btn-warning btn-sm';
     }
 
     addDelayAction(): void {

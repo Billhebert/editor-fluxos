@@ -110,4 +110,25 @@ describe('Flow', () => {
     it('isEmpty returns true for empty flow', () => {
         expect(new Flow('test').isEmpty).toBe(true);
     });
+
+    it('hasVariable returns true when action exists', () => {
+        const flow = new Flow('test', ['enter', 'click', 'type']);
+        expect(flow.hasVariable('click')).toBe(true);
+        expect(flow.hasVariable('enter')).toBe(true);
+    });
+
+    it('hasVariable returns false when action does not exist', () => {
+        const flow = new Flow('test', ['enter', 'click']);
+        expect(flow.hasVariable('type')).toBe(false);
+    });
+
+    it('moveAction throws when fromIndex is out of range', () => {
+        const flow = new Flow('test', ['a', 'b', 'c']);
+        expect(() => flow.moveAction(5, 1)).toThrow(ValidationError);
+    });
+
+    it('moveAction throws when toIndex is out of range', () => {
+        const flow = new Flow('test', ['a', 'b', 'c']);
+        expect(() => flow.moveAction(0, 5)).toThrow(ValidationError);
+    });
 });
