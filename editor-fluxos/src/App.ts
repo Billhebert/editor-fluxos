@@ -143,7 +143,11 @@ export class App {
         const flows = await this._flowManager.getAllFlows();
         const record: Record<string, RawAction[]> = {};
         flows.forEach(f => { record[f.name] = f.actions; });
-        this._fluxosCache = FlowSanitizer.sanitizeFluxos(record, this._varManager.variables);
+        const sanitized = FlowSanitizer.sanitizeFluxos(record, this._varManager.variables);
+        for (const key of Object.keys(this._fluxosCache)) {
+            delete this._fluxosCache[key];
+        }
+        Object.assign(this._fluxosCache, sanitized);
     }
 
     private _setupAutoSave(): void {

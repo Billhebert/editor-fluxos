@@ -1,6 +1,6 @@
 {
   "name": "editor-fluxos",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "FLUXO - Editor de fluxos para automacao",
   "main": "dist/main.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "tsc && vitest run --config vitest.e2e.config.ts",
     "bump-major": "npm version major",
     "bump-minor": "npm version minor",
     "bump-patch": "npm version patch"
@@ -21,6 +22,7 @@
     "electron": "^35.0.0",
     "electron-builder": "^25.0.0",
     "jsdom": "^30.0.1",
+    "playwright-core": "^1.63.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
@@ -34,7 +36,11 @@
       "dist/**/*",
       "src/**/*",
       "index.html",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "!node_modules/playwright-core/**",
+      "!node_modules/vitest/**",
+      "!node_modules/jsdom/**",
+      "!node_modules/@vitest/**"
     ],
     "win": {
       "target": "nsis",

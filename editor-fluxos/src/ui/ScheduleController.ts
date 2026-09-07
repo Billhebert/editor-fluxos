@@ -106,6 +106,7 @@ export class ScheduleController {
 
                 this._schedules.push(schedule);
                 await this._persist();
+                this._showList();
                 Toast.success(`Agendamento criado com ${r.order.length} execucoes!`);
             }
         });

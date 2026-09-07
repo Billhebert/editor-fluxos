@@ -12,6 +12,8 @@ export interface ScheduleListCallbacks {
 
 export class ScheduleListView {
     show(schedules: Schedule[], callbacks: ScheduleListCallbacks): HTMLElement {
+        document.getElementById('schedulesModal')?.remove();
+
         const overlay = document.createElement('div');
         overlay.className = 'modal-fullscreen';
         overlay.id = 'schedulesModal';
