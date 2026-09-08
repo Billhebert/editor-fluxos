@@ -106,6 +106,7 @@ export class ScheduleManager {
         }
 
         const minIntervalMs = Math.max(intervaloMinimo, 1) * 1000;
+        const minIntervalMinutes = Math.max(intervaloMinimo / 60, 1);
         const resolver = this._resolverFactory(variablePool || new VariablePool());
         let instanceId = 0;
 
@@ -116,19 +117,17 @@ export class ScheduleManager {
             const rangeStart = new Date(dIYear, dIMonth - 1, dIDay);
             const rangeEnd = new Date(dFYear, dFMonth - 1, dFDay, 23, 59, 59);
 
+            const totalMinutes = endMin - startMin;
+            const usableMinutes = Math.max(0, totalMinutes - (count - 1) * minIntervalMinutes);
+
             const current = new Date(rangeStart);
             while (current <= rangeEnd) {
                 const year = current.getFullYear();
                 const month = current.getMonth();
                 const day = current.getDate();
 
-                const totalMinutes = endMin - startMin;
-                const slotMinutes = totalMinutes / count;
-
                 for (let i = 0; i < count; i++) {
-                    const baseOffset = slotMinutes * i;
-                    const jitter = Math.random() * Math.max(0, slotMinutes - intervaloMinimo / 60);
-                    const randMin = Math.floor(startMin + baseOffset + jitter);
+                    const randMin = startMin + i * minIntervalMinutes + Math.random() * usableMinutes;
                     const randSec = Math.floor(Math.random() * 60);
                     const ts = new Date(year, month, day, Math.floor(randMin / 60), randMin % 60, randSec).getTime();
                     allTimestamps.push(ts);
@@ -152,16 +151,13 @@ export class ScheduleManager {
         }
 
         const totalMinutes = endMin - startMin;
-        const minIntervalMinutes = Math.max(intervaloMinimo / 60, 1);
-        const slotMinutes = totalMinutes / count;
+        const usableMinutes = Math.max(0, totalMinutes - (count - 1) * minIntervalMinutes);
 
         const timestamps: number[] = [];
         const [year, month, day] = date.split('-').map(Number);
 
         for (let i = 0; i < count; i++) {
-            const baseOffset = slotMinutes * i;
-            const jitter = Math.random() * Math.max(0, slotMinutes - minIntervalMinutes);
-            const randMin = Math.floor(startMin + baseOffset + jitter);
+            const randMin = startMin + i * minIntervalMinutes + Math.random() * usableMinutes;
             const randSec = Math.floor(Math.random() * 60);
             const ts = new Date(year, month - 1, day, Math.floor(randMin / 60), randMin % 60, randSec).getTime();
             timestamps.push(ts);

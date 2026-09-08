@@ -172,6 +172,77 @@ describe('ScheduleManager', () => {
         });
     });
 
+    describe('generateExecutionOrder - aleatoriedade', () => {
+        function gapsOf(order: { gatilhoTime: number }[]): number[] {
+            const gaps: number[] = [];
+            for (let i = 1; i < order.length; i++) {
+                gaps.push(order[i].gatilhoTime - order[i - 1].gatilhoTime);
+            }
+            return gaps;
+        }
+
+        it('nao gera tempos sequenciais quando ha folga na janela', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 5,
+                '2026-09-07', '08:00', '12:00', 60, pool
+            );
+            const gaps = gapsOf(order);
+            expect(new Set(gaps).size).toBeGreaterThan(1);
+        });
+
+        it('nao gera 1 execucao por minuto exata com count alto', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 60,
+                '2026-09-07', '07:00', '08:00', 60, pool
+            );
+            const gaps = gapsOf(order);
+            expect(new Set(gaps).size).toBeGreaterThan(1);
+        });
+
+        it('primeira execucao nao fica travada no inicio da janela', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 5,
+                '2026-09-07', '08:00', '12:00', 60, pool
+            );
+            const first = new Date(order[0].gatilhoTime);
+            const totalMs = first.getHours() * 3600 + first.getMinutes() * 60 + first.getSeconds();
+            const startMs = 8 * 3600;
+            expect(totalMs).toBeGreaterThan(startMs);
+        });
+
+        it('todos os timestamps ficam dentro da janela de tempo', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 20,
+                '2026-09-07', '08:00', '12:00', 60, pool
+            );
+            order.forEach(inst => {
+                const d = new Date(inst.gatilhoTime);
+                const totalSec = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+                expect(totalSec).toBeGreaterThanOrEqual(8 * 3600);
+                expect(totalSec).toBeLessThanOrEqual(12 * 3600);
+            });
+        });
+
+        it('respeita intervalo minimo mesmo com distribuicao aleatoria', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 20,
+                '2026-09-07', '08:00', '12:00', 120, pool
+            );
+            const gaps = gapsOf(order);
+            gaps.forEach(gap => expect(gap).toBeGreaterThanOrEqual(120 * 1000));
+        });
+
+        it('gera aleatorio tambem no modo data range', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 3,
+                '2026-09-07', '08:00', '12:00', 60, pool,
+                '2026-09-07', '2026-09-08'
+            );
+            const gaps = gapsOf(order);
+            expect(new Set(gaps).size).toBeGreaterThan(1);
+        });
+    });
+
     describe('getAllSchedules', () => {
         it('returns all schedules from repo', async () => {
             const s1 = { id: 'sch_1', flowName: 'a', executionOrder: [] } as any;
