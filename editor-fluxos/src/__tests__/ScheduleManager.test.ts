@@ -243,6 +243,56 @@ describe('ScheduleManager', () => {
         });
     });
 
+    describe('generateExecutionOrder - intervalo alto (3600s)', () => {
+        function gapsOf(order: { gatilhoTime: number }[]): number[] {
+            const gaps: number[] = [];
+            for (let i = 1; i < order.length; i++) {
+                gaps.push(order[i].gatilhoTime - order[i - 1].gatilhoTime);
+            }
+            return gaps;
+        }
+
+        it('nao ultrapassa o fim da janela quando janela = count x intervalo', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 2,
+                '2026-09-07', '07:00', '08:00', 3600, pool
+            );
+            const endMs = new Date(2026, 8, 7, 8, 0, 0).getTime();
+            order.forEach(inst => {
+                expect(inst.gatilhoTime).toBeLessThanOrEqual(endMs);
+            });
+        });
+
+        it('mantem aleatoriedade mesmo com count x intervalo proximo da janela', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 5,
+                '2026-09-07', '07:00', '12:00', 3600, pool
+            );
+            const gaps = gapsOf(order);
+            expect(new Set(gaps).size).toBeGreaterThan(1);
+        });
+
+        it('respeita o intervalo de 1h entre execucoes', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 5,
+                '2026-09-07', '07:00', '12:00', 3600, pool
+            );
+            const gaps = gapsOf(order);
+            gaps.forEach(gap => expect(gap).toBeGreaterThanOrEqual(3600 * 1000));
+        });
+
+        it('gera primeiro horario aleatorio dentro da janela', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 2,
+                '2026-09-07', '07:00', '12:00', 3600, pool
+            );
+            const first = new Date(order[0].gatilhoTime);
+            const firstMs = first.getHours() * 3600 + first.getMinutes() * 60 + first.getSeconds();
+            expect(firstMs).toBeGreaterThan(7 * 3600);
+            expect(firstMs).toBeLessThanOrEqual(12 * 3600);
+        });
+    });
+
     describe('getAllSchedules', () => {
         it('returns all schedules from repo', async () => {
             const s1 = { id: 'sch_1', flowName: 'a', executionOrder: [] } as any;
