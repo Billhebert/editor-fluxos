@@ -61,6 +61,13 @@ describe('FLUXO E2E', () => {
             expect(await page.textContent('h1')).toContain('FLUXO');
         });
 
+        it('mostra a versao do app na label', async () => {
+            const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
+            await page.waitForSelector('#versionLabel:has-text("v")');
+            const label = await page.textContent('#versionLabel');
+            expect(label).toBe(`v${pkg.version}`);
+        });
+
         it('renderiza todos os botoes do header', async () => {
             for (const action of ['open-file', 'save-file', 'save-file-as', 'open-var-config', 'open-schedules']) {
                 expect(await page.isVisible(`[data-action="${action}"]`)).toBe(true);

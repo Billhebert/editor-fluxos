@@ -103,6 +103,7 @@ export class App {
     }
 
     async init(): Promise<void> {
+        this._setupVersionLabel();
         this._varManager.loadFromStorage();
         await this._syncRepoFromStorage();
         await this._refreshCache();
@@ -124,6 +125,17 @@ export class App {
         this._recording.setupKeyboardRecording();
         await this._renderAll();
         this._setupAutoSave();
+    }
+
+    private _setupVersionLabel(): void {
+        const label = document.getElementById('versionLabel');
+        if (!label) return;
+        try {
+            const pkg = require('../package.json');
+            label.textContent = `v${pkg.version}`;
+        } catch {
+            label.textContent = 'v?';
+        }
     }
 
     private async _syncRepoFromStorage(): Promise<void> {
