@@ -108,11 +108,33 @@ export class ScheduleManager {
         const minIntervalMs = Math.max(intervaloMinimo, 1) * 1000;
         const minIntervalSeconds = Math.max(intervaloMinimo, 1);
         const windowSeconds = (endMin - startMin) * 60;
-        const usableSeconds = Math.max(0, windowSeconds - (count - 1) * minIntervalSeconds);
+        const canFit = count * minIntervalSeconds <= windowSeconds;
+        const usableSeconds = canFit ? Math.max(0, windowSeconds - (count - 1) * minIntervalSeconds) : 0;
         const resolver = this._resolverFactory(variablePool || new VariablePool());
         let instanceId = 0;
 
-        const randomOffsets = Array.from({ length: count }, () => Math.random()).sort((a, b) => a - b);
+        const newOffsets = (): number[] => Array.from({ length: count }, () => Math.random()).sort((a, b) => a - b);
+
+        const positionFor = (dayStart: number, i: number, offsets: number[]): number => {
+            let posSeconds: number;
+            if (canFit) {
+                posSeconds = startMin * 60 + offsets[i] * usableSeconds + i * minIntervalSeconds;
+            } else {
+                const slotSeconds = windowSeconds / count;
+                posSeconds = startMin * 60 + i * slotSeconds + offsets[i] * slotSeconds;
+            }
+            return dayStart + Math.floor(posSeconds) * 1000;
+        };
+
+        const enforceMinSpacing = (timestamps: number[]): void => {
+            if (!canFit) return;
+            timestamps.sort((a, b) => a - b);
+            for (let i = 1; i < timestamps.length; i++) {
+                if (timestamps[i] - timestamps[i - 1] < minIntervalMs) {
+                    timestamps[i] = timestamps[i - 1] + minIntervalMs;
+                }
+            }
+        };
 
         if (dataInicio && dataFim) {
             const allTimestamps: number[] = [];
@@ -127,21 +149,16 @@ export class ScheduleManager {
                 const month = current.getMonth();
                 const day = current.getDate();
                 const dayStart = new Date(year, month, day, 0, 0, 0).getTime();
+                const offsets = newOffsets();
 
                 for (let i = 0; i < count; i++) {
-                    const posSeconds = startMin * 60 + randomOffsets[i] * usableSeconds + i * minIntervalSeconds;
-                    allTimestamps.push(dayStart + Math.floor(posSeconds) * 1000);
+                    allTimestamps.push(positionFor(dayStart, i, offsets));
                 }
 
                 current.setDate(current.getDate() + 1);
             }
 
-            allTimestamps.sort((a, b) => a - b);
-            for (let i = 1; i < allTimestamps.length; i++) {
-                if (allTimestamps[i] - allTimestamps[i - 1] < minIntervalMs) {
-                    allTimestamps[i] = allTimestamps[i - 1] + minIntervalMs;
-                }
-            }
+            enforceMinSpacing(allTimestamps);
 
             const resolved = resolver.resolveTemplate(template, obrigatorioValor);
             return allTimestamps.map((ts) => {
@@ -153,18 +170,13 @@ export class ScheduleManager {
         const timestamps: number[] = [];
         const [year, month, day] = date.split('-').map(Number);
         const dayStart = new Date(year, month - 1, day, 0, 0, 0).getTime();
+        const offsets = newOffsets();
 
         for (let i = 0; i < count; i++) {
-            const posSeconds = startMin * 60 + randomOffsets[i] * usableSeconds + i * minIntervalSeconds;
-            timestamps.push(dayStart + Math.floor(posSeconds) * 1000);
+            timestamps.push(positionFor(dayStart, i, offsets));
         }
 
-        timestamps.sort((a, b) => a - b);
-        for (let i = 1; i < timestamps.length; i++) {
-            if (timestamps[i] - timestamps[i - 1] < minIntervalMs) {
-                timestamps[i] = timestamps[i - 1] + minIntervalMs;
-            }
-        }
+        enforceMinSpacing(timestamps);
 
         const resolved = resolver.resolveTemplate(template, obrigatorioValor);
         return timestamps.map((ts) => {

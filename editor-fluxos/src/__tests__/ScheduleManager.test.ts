@@ -293,6 +293,56 @@ describe('ScheduleManager', () => {
         });
     });
 
+    describe('generateExecutionOrder - count nao cabe na janela (15x, 1h, 11:00-21:40)', () => {
+        function gapsOf(order: { gatilhoTime: number }[]): number[] {
+            const gaps: number[] = [];
+            for (let i = 1; i < order.length; i++) {
+                gaps.push(order[i].gatilhoTime - order[i - 1].gatilhoTime);
+            }
+            return gaps;
+        }
+
+        it('mantem todas as execucoes dentro da janela diaria', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 15,
+                '2026-09-09', '11:00', '21:40', 3600, pool
+            );
+            expect(order).toHaveLength(15);
+            const startMs = new Date(2026, 8, 9, 11, 0, 0).getTime();
+            const endMs = new Date(2026, 8, 9, 21, 40, 0).getTime();
+            order.forEach(inst => {
+                expect(inst.gatilhoTime).toBeGreaterThanOrEqual(startMs);
+                expect(inst.gatilhoTime).toBeLessThanOrEqual(endMs);
+            });
+        });
+
+        it('gera aleatorio dentro da janela mesmo sem folga', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 15,
+                '2026-09-09', '11:00', '21:40', 3600, pool
+            );
+            const gaps = gapsOf(order);
+            expect(new Set(gaps).size).toBeGreaterThan(1);
+        });
+
+        it('data range recorrente mantem execucoes na janela diaria sem vazar', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 15,
+                '2026-09-09', '11:00', '21:40', 3600, pool,
+                '2026-09-09', '2026-09-13'
+            );
+            expect(order).toHaveLength(75);
+            order.forEach(inst => {
+                const d = new Date(inst.gatilhoTime);
+                const sec = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+                expect(sec).toBeGreaterThanOrEqual(11 * 3600);
+                expect(sec).toBeLessThanOrEqual(21 * 3600 + 40 * 60);
+                expect(d.getDate()).toBeGreaterThanOrEqual(9);
+                expect(d.getDate()).toBeLessThanOrEqual(13);
+            });
+        });
+    });
+
     describe('getAllSchedules', () => {
         it('returns all schedules from repo', async () => {
             const s1 = { id: 'sch_1', flowName: 'a', executionOrder: [] } as any;

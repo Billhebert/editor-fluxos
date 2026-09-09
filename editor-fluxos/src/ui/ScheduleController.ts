@@ -71,9 +71,16 @@ export class ScheduleController {
         this._newView.show(this._ctx.getFluxos(), this._ctx.getVarConfig(), {
             onClose: () => this._showList(),
             generateOrder: (template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim) => {
-                return this._ctx.scheduleManager.generateExecutionOrder(
+                const order = this._ctx.scheduleManager.generateExecutionOrder(
                     template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig(), dataInicio, dataFim
                 );
+                const [sh, sm] = timeStart.split(':').map(Number);
+                const [eh, em] = timeEnd.split(':').map(Number);
+                const windowSeconds = ((eh * 60 + em) - (sh * 60 + sm)) * 60;
+                if (count * Math.max(interval, 1) > windowSeconds) {
+                    Toast.info(`Aviso: ${count}x a cada ${interval}s nao cabe em ${timeStart}-${timeEnd}; distribuido dentro da janela`);
+                }
+                return order;
             },
             onGenerate: (result) => this._openPreview(result)
         });
