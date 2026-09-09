@@ -5,7 +5,7 @@ import { ScheduleManager } from '../use-cases/ScheduleManager';
 import { VariablePool, Schedule } from '../domain';
 
 vi.mock('../ui/Toast', () => ({
-    Toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+    Toast: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock('../ui/schedules/ScheduleListView', () => ({
@@ -88,6 +88,36 @@ describe('ScheduleController', () => {
 
         const newView = (ctrl as any)._newView;
         expect(newView.show).toHaveBeenCalled();
+    });
+
+    it('avisa com warning quando a configuracao nao cabe na janela', async () => {
+        await ctrl.openSchedules();
+
+        const listView = (ctrl as any)._listView;
+        listView.show.mock.calls[0][1].onNew();
+
+        const newView = (ctrl as any)._newView;
+        const newCallbacks = newView.show.mock.calls[0][2];
+
+        newCallbacks.generateOrder(['enter'], '', 15, '2026-09-09', '11:00', '21:40', 3600, null, null);
+
+        const { Toast } = await import('../ui/Toast');
+        expect(Toast.warning).toHaveBeenCalledWith(expect.stringContaining('nao cabe'));
+    });
+
+    it('nao avisa quando a configuracao cabe na janela', async () => {
+        await ctrl.openSchedules();
+
+        const listView = (ctrl as any)._listView;
+        listView.show.mock.calls[0][1].onNew();
+
+        const newView = (ctrl as any)._newView;
+        const newCallbacks = newView.show.mock.calls[0][2];
+
+        newCallbacks.generateOrder(['enter'], '', 3, '2026-09-09', '07:00', '08:00', 60, null, null);
+
+        const { Toast } = await import('../ui/Toast');
+        expect(Toast.warning).not.toHaveBeenCalled();
     });
 
     it('onToggle updates schedule active state and persists', async () => {

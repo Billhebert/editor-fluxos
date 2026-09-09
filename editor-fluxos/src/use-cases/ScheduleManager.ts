@@ -108,7 +108,7 @@ export class ScheduleManager {
         const minIntervalMs = Math.max(intervaloMinimo, 1) * 1000;
         const minIntervalSeconds = Math.max(intervaloMinimo, 1);
         const windowSeconds = (endMin - startMin) * 60;
-        const canFit = count * minIntervalSeconds <= windowSeconds;
+        const canFit = (count - 1) * minIntervalSeconds <= windowSeconds;
         const usableSeconds = canFit ? Math.max(0, windowSeconds - (count - 1) * minIntervalSeconds) : 0;
         const resolver = this._resolverFactory(variablePool || new VariablePool());
         let instanceId = 0;

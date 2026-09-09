@@ -263,6 +263,18 @@ describe('ScheduleManager', () => {
             });
         });
 
+        it('aplica o intervalo minimo quando cabe exatamente na janela', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], '', 2,
+                '2026-09-07', '07:00', '08:00', 3600, pool
+            );
+            expect(order).toHaveLength(2);
+            const gap = order[1].gatilhoTime - order[0].gatilhoTime;
+            expect(gap).toBeGreaterThanOrEqual(3600 * 1000);
+            const startMs = new Date(2026, 8, 7, 7, 0, 0).getTime();
+            expect(order[0].gatilhoTime).toBeGreaterThanOrEqual(startMs);
+        });
+
         it('mantem aleatoriedade mesmo com count x intervalo proximo da janela', () => {
             const order = manager.generateExecutionOrder(
                 ['enter'], '', 5,

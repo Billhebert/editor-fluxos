@@ -77,8 +77,8 @@ export class ScheduleController {
                 const [sh, sm] = timeStart.split(':').map(Number);
                 const [eh, em] = timeEnd.split(':').map(Number);
                 const windowSeconds = ((eh * 60 + em) - (sh * 60 + sm)) * 60;
-                if (count * Math.max(interval, 1) > windowSeconds) {
-                    Toast.info(`Aviso: ${count}x a cada ${interval}s nao cabe em ${timeStart}-${timeEnd}; distribuido dentro da janela`);
+                if ((count - 1) * Math.max(interval, 1) > windowSeconds) {
+                    Toast.warning(`Aviso: ${count}x a cada ${interval}s nao cabe em ${timeStart}-${timeEnd}; sera distribuido aleatoriamente na janela disponivel`);
                 }
                 return order;
             },
