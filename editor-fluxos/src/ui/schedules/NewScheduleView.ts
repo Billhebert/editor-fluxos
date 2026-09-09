@@ -21,7 +21,7 @@ export interface NewScheduleResult {
 export interface NewScheduleCallbacks {
     onClose(): void;
     onGenerate(result: NewScheduleResult): void;
-    generateOrder(template: RawAction[], obrigValor: string, count: number, date: string, timeStart: string, timeEnd: string, interval: number, dataInicio?: string | null, dataFim?: string | null): ExecutionInstance[];
+    generateOrder(template: RawAction[], obrigValor: string, count: number, date: string, timeStart: string, timeEnd: string, interval: number, dataInicio?: string | null, dataFim?: string | null, days?: number[]): ExecutionInstance[];
 }
 
 export class NewScheduleView {
@@ -169,12 +169,12 @@ export class NewScheduleView {
                 return;
             }
 
-            const order = callbacks.generateOrder(template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim);
-
             let days: number[] = [];
             if (currentMode === 'recurring') {
                 days = [...overlay.querySelectorAll('.sch-day:checked')].map((c) => parseInt((c as HTMLInputElement).value));
             }
+
+            const order = callbacks.generateOrder(template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days);
 
             overlay.remove();
             callbacks.onGenerate({ flowName, order, mode: currentMode, date, timeStart, timeEnd, days, obrigValor, count, interval, dataInicio, dataFim });

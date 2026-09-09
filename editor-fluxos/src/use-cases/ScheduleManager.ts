@@ -41,7 +41,8 @@ export class ScheduleManager {
             config.intervaloMinimo || 60,
             variablePool,
             config.dataInicio || null,
-            config.dataFim || null
+            config.dataFim || null,
+            config.days
         );
 
         const schedule = new Schedule({ ...config, executionOrder: order });
@@ -94,7 +95,8 @@ export class ScheduleManager {
         intervaloMinimo: number,
         variablePool?: VariablePool,
         dataInicio?: string | null,
-        dataFim?: string | null
+        dataFim?: string | null,
+        days?: number[]
     ): ExecutionInstance[] {
         const [sh, sm] = timeStart.split(':').map(Number);
         const [eh, em] = timeEnd.split(':').map(Number);
@@ -150,6 +152,11 @@ export class ScheduleManager {
                 const day = current.getDate();
                 const dayStart = new Date(year, month, day, 0, 0, 0).getTime();
                 const offsets = newOffsets();
+
+                if (days && days.length > 0 && !days.includes(current.getDay())) {
+                    current.setDate(current.getDate() + 1);
+                    continue;
+                }
 
                 for (let i = 0; i < count; i++) {
                     allTimestamps.push(positionFor(dayStart, i, offsets));

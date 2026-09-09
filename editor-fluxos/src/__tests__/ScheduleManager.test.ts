@@ -106,6 +106,29 @@ describe('ScheduleManager', () => {
             expect(order).toHaveLength(8);
         });
 
+        it('filtra apenas os dias da semana selecionados (recurring)', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], 'item', 2,
+                '2026-09-07', '08:00', '12:00', 60, pool,
+                '2026-09-09', '2026-09-30', [1]
+            );
+            order.forEach(inst => {
+                expect(new Date(inst.gatilhoTime).getDay()).toBe(1);
+            });
+            const days = new Set(order.map(i => new Date(i.gatilhoTime).getDate()));
+            expect(days.has(9)).toBe(false);
+            expect(days.has(30)).toBe(false);
+        });
+
+        it('gera para todos os dias quando days esta vazio (compat)', () => {
+            const order = manager.generateExecutionOrder(
+                ['enter'], 'item', 1,
+                '2026-09-07', '08:00', '12:00', 60, pool,
+                '2026-09-09', '2026-09-12', []
+            );
+            expect(order).toHaveLength(4);
+        });
+
         it('spreads instances across the full date range', () => {
             const order = manager.generateExecutionOrder(
                 ['enter'], 'item', 1,

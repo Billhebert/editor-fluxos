@@ -70,9 +70,9 @@ export class ScheduleController {
     private _openNewSchedule(): void {
         this._newView.show(this._ctx.getFluxos(), this._ctx.getVarConfig(), {
             onClose: () => this._showList(),
-            generateOrder: (template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim) => {
+            generateOrder: (template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days) => {
                 const order = this._ctx.scheduleManager.generateExecutionOrder(
-                    template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig(), dataInicio, dataFim
+                    template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig(), dataInicio, dataFim, days
                 );
                 const [sh, sm] = timeStart.split(':').map(Number);
                 const [eh, em] = timeEnd.split(':').map(Number);
