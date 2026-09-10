@@ -181,16 +181,26 @@ describe('ScheduleManager', () => {
             expect(order[0].resolvedActions[0]).toBe('[SEM ITEM]');
         });
 
-        it('each instance gets the same resolved template (resolved once)', () => {
+        it('resolves ITEM_OPCIONAL de forma independente por execucao', () => {
             pool.addOpcional('a', '1');
             pool.addOpcional('b', '2');
             const order = manager.generateExecutionOrder(
-                ['ITEM_OPCIONAL', 'ITEM_OPCIONAL'], '', 3,
+                ['ITEM_OPCIONAL'], '', 30,
                 '2026-09-07', '08:00', '12:00', 60, pool
             );
-            const first = JSON.stringify(order[0].resolvedActions);
+            const distinct = new Set(order.map(inst => inst.resolvedActions[0]));
+            expect(distinct.size).toBeGreaterThan(1);
+            distinct.forEach(v => expect(['1', '2']).toContain(v));
+        });
+
+        it('usa o mesmo opcional quando o pool tem apenas um item', () => {
+            pool.addOpcional('cor', 'azul');
+            const order = manager.generateExecutionOrder(
+                ['ITEM_OPCIONAL'], '', 3,
+                '2026-09-07', '08:00', '12:00', 60, pool
+            );
             order.forEach(inst => {
-                expect(JSON.stringify(inst.resolvedActions)).toBe(first);
+                expect(inst.resolvedActions[0]).toBe('azul');
             });
         });
     });

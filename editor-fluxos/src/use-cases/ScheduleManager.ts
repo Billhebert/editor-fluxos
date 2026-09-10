@@ -167,10 +167,9 @@ export class ScheduleManager {
 
             enforceMinSpacing(allTimestamps);
 
-            const resolved = resolver.resolveTemplate(template, obrigatorioValor);
             return allTimestamps.map((ts) => {
                 instanceId++;
-                return new ExecutionInstance(instanceId, ts, [...resolved]);
+                return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor));
             });
         }
 
@@ -185,10 +184,9 @@ export class ScheduleManager {
 
         enforceMinSpacing(timestamps);
 
-        const resolved = resolver.resolveTemplate(template, obrigatorioValor);
         return timestamps.map((ts) => {
             instanceId++;
-            return new ExecutionInstance(instanceId, ts, [...resolved]);
+            return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor));
         });
     }
 }
