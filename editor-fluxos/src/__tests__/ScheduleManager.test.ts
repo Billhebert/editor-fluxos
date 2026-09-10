@@ -203,6 +203,24 @@ describe('ScheduleManager', () => {
                 expect(inst.resolvedActions[0]).toBe('azul');
             });
         });
+
+        it('distribui os opcionais de forma equilibrada entre as execucoes', () => {
+            pool.addOpcional('cor', 'azul');
+            pool.addOpcional('cor', 'verde');
+            pool.addOpcional('cor', 'vermelho');
+            const order = manager.generateExecutionOrder(
+                ['ITEM_OPCIONAL'], '', 30,
+                '2026-09-07', '08:00', '12:00', 60, pool
+            );
+            const counts: Record<string, number> = {};
+            order.forEach(inst => {
+                const v = inst.resolvedActions[0] as string;
+                counts[v] = (counts[v] || 0) + 1;
+            });
+            expect(counts['azul']).toBe(10);
+            expect(counts['verde']).toBe(10);
+            expect(counts['vermelho']).toBe(10);
+        });
     });
 
     describe('generateExecutionOrder - aleatoriedade', () => {

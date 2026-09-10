@@ -348,6 +348,50 @@ describe('FLUXO E2E', () => {
         });
     });
 
+    describe('Agendamentos - variavel opcional', () => {
+        it('randomiza a variavel opcional em cada ordem gerada', async () => {
+            await createFlow('opc_flow');
+
+            await openRecordingFor('opc_flow');
+            await page.click('.recording-tab[data-arg="vars"]');
+            await page.click('#variablesContainer .variable-tag.opcional');
+            await page.click('[data-action="add-queue-to-fluxo"]');
+            await page.waitForSelector('.fluxo-card[data-name="opc_flow"] .action-item');
+            await page.click('[data-action="close-recording"]');
+
+            await page.click('[data-action="open-var-config"]');
+            await page.waitForSelector('#varConfigModal');
+            for (const valor of ['azul', 'verde', 'vermelho']) {
+                await page.fill('#opcNome', 'cor');
+                await page.fill('#opcValor', valor);
+                await page.click('#varConfigModal .btn-add-opc');
+            }
+            await page.click('#varConfigModal .btn-save');
+            await page.waitForSelector('#varConfigModal', { state: 'detached' });
+
+            await page.click('[data-action="open-schedules"]');
+            await page.waitForSelector('#schedulesModal');
+            await page.click('#schedulesModal .btn-new');
+            await page.waitForSelector('#newScheduleModal');
+            await page.selectOption('#schFlow', 'opc_flow');
+            await page.fill('#schCount', '10');
+            await page.fill('#schInterval', '60');
+            await page.fill('#schDate', '2030-01-01');
+            await page.click('#newScheduleModal .btn-preview');
+            await page.waitForSelector('#execOrderPreviewModal');
+
+            const actions = await page.evaluate(() =>
+                Array.from(document.querySelectorAll('#execOrderTable tbody tr td:nth-child(3)')).map((td) => td.textContent!.trim())
+            );
+            const distinct = new Set(actions);
+            expect(distinct.size).toBeGreaterThan(1);
+
+            await page.click('#execOrderPreviewModal .btn-cancel');
+            await page.waitForSelector('#execOrderPreviewModal', { state: 'detached' });
+            await page.click('#schedulesModal .btn-close');
+        });
+    });
+
     describe('Arquivos (dialogos stub)', () => {
         const tmpFile = path.join(os.tmpdir(), `fluxo_e2e_open_${Date.now()}.json`);
         const saveFile = path.join(os.tmpdir(), `fluxo_e2e_save_${Date.now()}.json`);

@@ -112,7 +112,9 @@ export class ScheduleManager {
         const windowSeconds = (endMin - startMin) * 60;
         const canFit = (count - 1) * minIntervalSeconds <= windowSeconds;
         const usableSeconds = canFit ? Math.max(0, windowSeconds - (count - 1) * minIntervalSeconds) : 0;
-        const resolver = this._resolverFactory(variablePool || new VariablePool());
+        const pool = variablePool || new VariablePool();
+        const resolver = this._resolverFactory(pool);
+        const opcionalIterator = pool.createOpcionalIterator();
         let instanceId = 0;
 
         const newOffsets = (): number[] => Array.from({ length: count }, () => Math.random()).sort((a, b) => a - b);
@@ -169,7 +171,7 @@ export class ScheduleManager {
 
             return allTimestamps.map((ts) => {
                 instanceId++;
-                return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor));
+                return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor, opcionalIterator));
             });
         }
 
@@ -186,7 +188,7 @@ export class ScheduleManager {
 
         return timestamps.map((ts) => {
             instanceId++;
-            return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor));
+            return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor, opcionalIterator));
         });
     }
 }

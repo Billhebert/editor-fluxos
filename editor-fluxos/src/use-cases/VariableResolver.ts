@@ -8,8 +8,8 @@ export class VariableResolver {
         this._pool = variablePool;
     }
 
-    resolveTemplate(rawActions: RawAction[], obrigatorioValor: string | null = null): RawAction[] {
-        const opcionalIterator = this._pool.createOpcionalIterator();
+    resolveTemplate(rawActions: RawAction[], obrigatorioValor: string | null = null, sharedIterator?: { next(): string }): RawAction[] {
+        const opcionalIterator = sharedIterator || this._pool.createOpcionalIterator();
         const usedOpcionais = new Set<string>();
 
         return rawActions.map(raw => {
