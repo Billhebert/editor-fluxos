@@ -39,6 +39,19 @@ export class VariablePool {
         this._obrigatorias.splice(index, 1);
     }
 
+    clearObrigatorios(): void {
+        this._obrigatorias = [];
+    }
+
+    clearOpcionais(): void {
+        this._opcionais = [];
+    }
+
+    clearAll(): void {
+        this._obrigatorias = [];
+        this._opcionais = [];
+    }
+
     updateObrigatorio(index: number, nome: string, valor: string): void {
         this.validateVariable(nome, valor);
         if (index < 0 || index >= this._obrigatorias.length) {

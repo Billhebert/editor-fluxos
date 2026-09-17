@@ -293,6 +293,37 @@ describe('FLUXO E2E', () => {
             await page.waitForSelector('#varConfigModal', { state: 'detached' });
             await waitToast('Variaveis salvas');
         });
+
+        it('pagina e deleta todas as variaveis opcionais', async () => {
+            await page.click('[data-action="open-var-config"]');
+            await page.waitForSelector('#varConfigModal');
+
+            await page.click('#varConfigModal .btn-clear-opc');
+            await page.waitForSelector('#opcionalTable .empty-state');
+
+            for (let i = 0; i < 12; i++) {
+                await page.fill('#opcNome', 'cor');
+                await page.fill('#opcValor', `valor_${i}`);
+                await page.click('#varConfigModal .btn-add-opc');
+            }
+
+            await page.waitForSelector('#opcionalTable .pagination-info');
+            expect(await page.textContent('#opcionalTable .pagination-info')).toContain('Página 1 de 2');
+            expect(await page.locator('#opcionalTable tbody tr').count()).toBe(10);
+
+            await page.click('#opcionalTable .btn-page-next');
+            expect(await page.textContent('#opcionalTable .pagination-info')).toContain('Página 2 de 2');
+            expect(await page.locator('#opcionalTable tbody tr').count()).toBe(2);
+
+            await page.click('#opcionalTable .btn-page-prev');
+            expect(await page.textContent('#opcionalTable .pagination-info')).toContain('Página 1 de 2');
+
+            await page.click('#varConfigModal .btn-clear-opc');
+            await page.waitForSelector('#opcionalTable .empty-state');
+            await waitToast('Opcionais deletadas', 'info');
+
+            await page.click('#varConfigModal .btn-close');
+        });
     });
 
     describe('Agendamentos', () => {

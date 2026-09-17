@@ -463,4 +463,191 @@ describe('VariableConfigController', () => {
             expect(html).toContain('&lt;script&gt;');
         });
     });
+
+    describe('handleClearObrig', () => {
+        beforeEach(() => { ctrl.open(); });
+
+        it('deleta todas as obrigatorias apos confirmar', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('a', '1');
+            pool.addObrigatorio('b', '2');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+
+            ctrl.handleClearObrig();
+
+            expect(pool.obrigatorias).toHaveLength(0);
+            expect(Toast.info).toHaveBeenCalled();
+            vi.mocked(globalThis.confirm).mockRestore();
+        });
+
+        it('nao deleta quando confirmacao e cancelada', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('a', '1');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            vi.spyOn(globalThis, 'confirm').mockReturnValue(false);
+
+            ctrl.handleClearObrig();
+
+            expect(pool.obrigatorias).toHaveLength(1);
+            vi.mocked(globalThis.confirm).mockRestore();
+        });
+
+        it('nao pede confirmacao quando o pool esta vazio', () => {
+            vi.mocked(ctx.getVarConfig).mockReturnValue(new VariablePool());
+            const spy = vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+
+            ctrl.handleClearObrig();
+
+            expect(spy).not.toHaveBeenCalled();
+            spy.mockRestore();
+        });
+    });
+
+    describe('handleClearOpc', () => {
+        beforeEach(() => { ctrl.open(); });
+
+        it('deleta todas as opcionais apos confirmar', () => {
+            const pool = new VariablePool();
+            pool.addOpcional('a', '1');
+            pool.addOpcional('b', '2');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+
+            ctrl.handleClearOpc();
+
+            expect(pool.opcionais).toHaveLength(0);
+            expect(Toast.info).toHaveBeenCalled();
+            vi.mocked(globalThis.confirm).mockRestore();
+        });
+
+        it('nao deleta quando confirmacao e cancelada', () => {
+            const pool = new VariablePool();
+            pool.addOpcional('a', '1');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            vi.spyOn(globalThis, 'confirm').mockReturnValue(false);
+
+            ctrl.handleClearOpc();
+
+            expect(pool.opcionais).toHaveLength(1);
+            vi.mocked(globalThis.confirm).mockRestore();
+        });
+    });
+
+    describe('handleClearAll', () => {
+        beforeEach(() => { ctrl.open(); });
+
+        it('deleta obrigatorias e opcionais apos confirmar', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('a', '1');
+            pool.addOpcional('b', '2');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+
+            ctrl.handleClearAll();
+
+            expect(pool.obrigatorias).toHaveLength(0);
+            expect(pool.opcionais).toHaveLength(0);
+            expect(Toast.info).toHaveBeenCalled();
+            vi.mocked(globalThis.confirm).mockRestore();
+        });
+
+        it('nao deleta quando confirmacao e cancelada', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('a', '1');
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            vi.spyOn(globalThis, 'confirm').mockReturnValue(false);
+
+            ctrl.handleClearAll();
+
+            expect(pool.obrigatorias).toHaveLength(1);
+            vi.mocked(globalThis.confirm).mockRestore();
+        });
+    });
+
+    describe('paginacao', () => {
+        it('mostra 10 itens na primeira pagina e 2 na segunda', () => {
+            const pool = new VariablePool();
+            for (let i = 0; i < 12; i++) {
+                pool.addOpcional('cor', `valor_${i}`);
+            }
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            ctrl.open();
+
+            const modal = document.getElementById('varConfigModal')!;
+            expect(modal.querySelector('#opcionalTable tbody')!.children.length).toBe(10);
+            expect(modal.querySelector('#opcionalTable .pagination-info')!.textContent).toBe('Página 1 de 2');
+
+            ctrl.handleNextPage('opc');
+
+            expect(modal.querySelector('#opcionalTable tbody')!.children.length).toBe(2);
+            expect(modal.querySelector('#opcionalTable .pagination-info')!.textContent).toBe('Página 2 de 2');
+        });
+
+        it('remove usa indice absoluto na segunda pagina', () => {
+            const pool = new VariablePool();
+            for (let i = 0; i < 12; i++) {
+                pool.addOpcional('cor', `valor_${i}`);
+            }
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            ctrl.open();
+
+            ctrl.handleNextPage('opc');
+
+            const modal = document.getElementById('varConfigModal')!;
+            const firstRemoveBtn = modal.querySelector('#opcionalTable .btn-remove-opc') as HTMLElement;
+            expect(firstRemoveBtn.dataset.idx).toBe('10');
+            expect(pool.opcionais).toHaveLength(12);
+        });
+
+        it('nao exibe paginacao quando tem 10 itens ou menos', () => {
+            const pool = new VariablePool();
+            for (let i = 0; i < 10; i++) {
+                pool.addObrigatorio('n', `v${i}`);
+            }
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            ctrl.open();
+
+            const modal = document.getElementById('varConfigModal')!;
+            expect(modal.querySelector('#obrigTable .pagination-controls')).toBeNull();
+        });
+
+        it('navega para tras e para frente', () => {
+            const pool = new VariablePool();
+            for (let i = 0; i < 25; i++) {
+                pool.addOpcional('cor', `valor_${i}`);
+            }
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            ctrl.open();
+
+            const modal = document.getElementById('varConfigModal')!;
+            ctrl.handleNextPage('opc');
+            ctrl.handleNextPage('opc');
+            expect(modal.querySelector('#opcionalTable .pagination-info')!.textContent).toBe('Página 3 de 3');
+
+            ctrl.handlePrevPage('opc');
+            expect(modal.querySelector('#opcionalTable .pagination-info')!.textContent).toBe('Página 2 de 3');
+
+            ctrl.handlePrevPage('opc');
+            ctrl.handlePrevPage('opc');
+            expect(modal.querySelector('#opcionalTable .pagination-info')!.textContent).toBe('Página 1 de 3');
+        });
+
+        it('volta a pagina 1 apos deletar tudo', () => {
+            const pool = new VariablePool();
+            for (let i = 0; i < 12; i++) {
+                pool.addOpcional('cor', `valor_${i}`);
+            }
+            vi.mocked(ctx.getVarConfig).mockReturnValue(pool);
+            ctrl.open();
+            ctrl.handleNextPage('opc');
+
+            vi.spyOn(globalThis, 'confirm').mockReturnValue(true);
+            ctrl.handleClearOpc();
+
+            const modal = document.getElementById('varConfigModal')!;
+            expect(modal.querySelector('#opcionalTable .empty-state')).not.toBeNull();
+            vi.mocked(globalThis.confirm).mockRestore();
+        });
+    });
 });

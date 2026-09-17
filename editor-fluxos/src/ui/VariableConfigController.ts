@@ -12,8 +12,12 @@ export interface VariableConfigContext {
 }
 
 export class VariableConfigController {
+    private static readonly PAGE_SIZE = 10;
+
     private _ctx: VariableConfigContext;
     private _overlay: HTMLElement | null = null;
+    private _obrigPage = 0;
+    private _opcPage = 0;
 
     constructor(ctx: VariableConfigContext) {
         this._ctx = ctx;
@@ -24,6 +28,8 @@ export class VariableConfigController {
         overlay.className = 'modal-fullscreen';
         overlay.id = 'varConfigModal';
         this._overlay = overlay;
+        this._obrigPage = 0;
+        this._opcPage = 0;
 
         overlay.innerHTML = `
             <div class="modal-fullscreen-header">
@@ -31,14 +37,20 @@ export class VariableConfigController {
                 <button class="btn btn-outline btn-sm btn-close">✕ Fechar</button>
             </div>
             <div style="max-width:900px; margin:0 auto;">
-                <div class="section-title">Obrigatorias</div>
+                <div class="section-title-row">
+                    <div class="section-title">Obrigatorias</div>
+                    <button class="btn btn-danger btn-sm btn-clear-obrig">🗑 Deletar todas</button>
+                </div>
                 <div id="obrigTable"></div>
                 <div class="config-row" style="margin-top:8px;">
                     <input type="text" id="obrigNome" placeholder="Nome" style="width:150px;" />
                     <input type="text" id="obrigValor" placeholder="Valor" style="width:200px;" />
                     <button class="btn btn-primary btn-sm btn-add-obrig">+ Adicionar</button>
                 </div>
-                <div class="section-title" style="margin-top:24px;">Opcionais (pool aleatorio)</div>
+                <div class="section-title-row" style="margin-top:24px;">
+                    <div class="section-title">Opcionais (pool aleatorio)</div>
+                    <button class="btn btn-danger btn-sm btn-clear-opc">🗑 Deletar todas</button>
+                </div>
                 <div id="opcionalTable"></div>
                 <div class="config-row" style="margin-top:8px;">
                     <input type="text" id="opcNome" placeholder="Nome" style="width:150px;" />
@@ -58,6 +70,7 @@ export class VariableConfigController {
                         <option value="opc">Opcionais</option>
                     </select>
                     <button class="btn btn-outline btn-export-json">💾 Exportar JSON</button>
+                    <button class="btn btn-danger btn-clear-all">🗑 Deletar Todas</button>
                     <button class="btn btn-success btn-save">💾 Salvar</button>
                 </div>
             </div>
@@ -70,6 +83,9 @@ export class VariableConfigController {
         overlay.querySelector('.btn-add-obrig')!.addEventListener('click', () => this.handleAddObrig());
         overlay.querySelector('.btn-add-opc')!.addEventListener('click', () => this.handleAddOpc());
         overlay.querySelector('.btn-save')!.addEventListener('click', () => this.handleSave());
+        overlay.querySelector('.btn-clear-obrig')!.addEventListener('click', () => this.handleClearObrig());
+        overlay.querySelector('.btn-clear-opc')!.addEventListener('click', () => this.handleClearOpc());
+        overlay.querySelector('.btn-clear-all')!.addEventListener('click', () => this.handleClearAll());
         overlay.querySelector('.btn-import-json')!.addEventListener('click', () => {
             (overlay.querySelector('#importJsonFile') as HTMLInputElement).click();
         });
@@ -123,6 +139,64 @@ export class VariableConfigController {
         Toast.success('Variaveis salvas!');
     }
 
+    handleClearObrig(): void {
+        const overlay = this._overlay;
+        if (!overlay) return;
+        const pool = this._ctx.getVarConfig();
+        if (pool.obrigatorias.length === 0) return;
+        if (!confirm('Deletar todas as variaveis obrigatorias?')) return;
+        pool.clearObrigatorios();
+        this._obrigPage = 0;
+        this._renderTables(overlay);
+        Toast.info('Obrigatorias deletadas');
+    }
+
+    handleClearOpc(): void {
+        const overlay = this._overlay;
+        if (!overlay) return;
+        const pool = this._ctx.getVarConfig();
+        if (pool.opcionais.length === 0) return;
+        if (!confirm('Deletar todas as variaveis opcionais?')) return;
+        pool.clearOpcionais();
+        this._opcPage = 0;
+        this._renderTables(overlay);
+        Toast.info('Opcionais deletadas');
+    }
+
+    handleClearAll(): void {
+        const overlay = this._overlay;
+        if (!overlay) return;
+        const pool = this._ctx.getVarConfig();
+        if (pool.obrigatorias.length === 0 && pool.opcionais.length === 0) return;
+        if (!confirm('Deletar todas as variaveis (obrigatorias e opcionais)?')) return;
+        pool.clearAll();
+        this._obrigPage = 0;
+        this._opcPage = 0;
+        this._renderTables(overlay);
+        Toast.info('Todas as variaveis deletadas');
+    }
+
+    handleNextPage(type: 'obrig' | 'opc'): void {
+        const overlay = this._overlay;
+        if (!overlay) return;
+        const total = this._pageCount(type);
+        const pageKey = type === 'obrig' ? '_obrigPage' : '_opcPage';
+        if (this[pageKey] < total - 1) {
+            this[pageKey]++;
+            this._renderTables(overlay);
+        }
+    }
+
+    handlePrevPage(type: 'obrig' | 'opc'): void {
+        const overlay = this._overlay;
+        if (!overlay) return;
+        const pageKey = type === 'obrig' ? '_obrigPage' : '_opcPage';
+        if (this[pageKey] > 0) {
+            this[pageKey]--;
+            this._renderTables(overlay);
+        }
+    }
+
     handleImportFile(e: Event): void {
         const input = e.target as HTMLInputElement;
         const file = input.files?.[0];
@@ -174,12 +248,19 @@ export class VariableConfigController {
 
         this._renderTable(overlay, '#obrigTable', varConfig.obrigatorias, 'obrig', (idx) => {
             varConfig.removeObrigatorio(idx);
+            this._obrigPage = Math.min(this._obrigPage, this._pageCount('obrig') - 1);
             this._renderTables(overlay);
         });
         this._renderTable(overlay, '#opcionalTable', varConfig.opcionais, 'opc', (idx) => {
             varConfig.removeOpcional(idx);
+            this._opcPage = Math.min(this._opcPage, this._pageCount('opc') - 1);
             this._renderTables(overlay);
         });
+    }
+
+    private _pageCount(type: 'obrig' | 'opc'): number {
+        const items = type === 'obrig' ? this._ctx.getVarConfig().obrigatorias : this._ctx.getVarConfig().opcionais;
+        return Math.max(1, Math.ceil(items.length / VariableConfigController.PAGE_SIZE));
     }
 
     private _renderTable(
@@ -197,21 +278,42 @@ export class VariableConfigController {
             return;
         }
 
+        const pageKey = type === 'obrig' ? '_obrigPage' : '_opcPage';
+        const page = Math.min(this[pageKey], this._pageCount(type) - 1);
+        this[pageKey] = page;
+        const start = page * VariableConfigController.PAGE_SIZE;
+        const pageItems = items.slice(start, start + VariableConfigController.PAGE_SIZE);
+        const totalPages = this._pageCount(type);
+
         let html = '<table class="data-table"><thead><tr><th>Nome</th><th>Valor</th><th></th></tr></thead><tbody>';
-        items.forEach((item, i) => {
+        pageItems.forEach((item, i) => {
+            const absIdx = start + i;
             html += `<tr>
                 <td>${escapeHtml(item.nome)}</td>
                 <td>${escapeHtml(item.valor)}</td>
-                <td><button class="btn btn-danger btn-sm btn-remove-${type}" data-idx="${i}">✕</button></td>
+                <td><button class="btn btn-danger btn-sm btn-remove-${type}" data-idx="${absIdx}">✕</button></td>
             </tr>`;
         });
         html += '</tbody></table>';
+        if (totalPages > 1) {
+            html += `<div class="pagination-controls">
+                <button class="btn btn-outline btn-sm btn-page-prev" data-table="${type}">◀ Anterior</button>
+                <span class="pagination-info">Página ${page + 1} de ${totalPages}</span>
+                <button class="btn btn-outline btn-sm btn-page-next" data-table="${type}">Próxima ▶</button>
+            </div>`;
+        }
         container.innerHTML = html;
         container.querySelectorAll(`.btn-remove-${type}`).forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const idx = parseInt((e.target as HTMLElement).dataset.idx!);
                 onRemove(idx);
             });
+        });
+        container.querySelectorAll('.btn-page-prev').forEach(btn => {
+            btn.addEventListener('click', () => this.handlePrevPage(type));
+        });
+        container.querySelectorAll('.btn-page-next').forEach(btn => {
+            btn.addEventListener('click', () => this.handleNextPage(type));
         });
     }
 }

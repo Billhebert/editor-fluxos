@@ -227,4 +227,44 @@ describe('VariablePool', () => {
         expect(restored.obrigatorias).toHaveLength(1);
         expect(restored.opcionais).toHaveLength(1);
     });
+
+    describe('clear methods', () => {
+        it('clearObrigatorios remove apenas obrigatorias', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('n1', 'v1');
+            pool.addObrigatorio('n2', 'v2');
+            pool.addOpcional('o1', 'ov1');
+            pool.clearObrigatorios();
+            expect(pool.obrigatorias).toHaveLength(0);
+            expect(pool.opcionais).toHaveLength(1);
+        });
+
+        it('clearOpcionais remove apenas opcionais', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('n1', 'v1');
+            pool.addOpcional('o1', 'ov1');
+            pool.addOpcional('o2', 'ov2');
+            pool.clearOpcionais();
+            expect(pool.obrigatorias).toHaveLength(1);
+            expect(pool.opcionais).toHaveLength(0);
+        });
+
+        it('clearAll remove obrigatorias e opcionais', () => {
+            const pool = new VariablePool();
+            pool.addObrigatorio('n1', 'v1');
+            pool.addOpcional('o1', 'ov1');
+            pool.clearAll();
+            expect(pool.obrigatorias).toHaveLength(0);
+            expect(pool.opcionais).toHaveLength(0);
+        });
+
+        it('clear em pool vazio nao lanca erro', () => {
+            const pool = new VariablePool();
+            expect(() => {
+                pool.clearObrigatorios();
+                pool.clearOpcionais();
+                pool.clearAll();
+            }).not.toThrow();
+        });
+    });
 });
