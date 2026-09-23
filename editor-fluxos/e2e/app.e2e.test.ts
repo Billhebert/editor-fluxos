@@ -350,6 +350,27 @@ describe('FLUXO E2E', () => {
             await page.click('#execOrderPreviewModal .btn-confirm');
             await page.waitForSelector('.schedule-card');
             await waitToast('Agendamento criado com 3 execucoes');
+
+            expect(await page.locator('.schedule-card .conflict-badge').count()).toBe(0);
+        });
+
+        it('nao acusa falso conflito para o primeiro agendamento sozinho', async () => {
+            await page.click('#schedulesModal .btn-new');
+            await page.waitForSelector('#newScheduleModal');
+
+            await page.selectOption('#schFlow', 'rec_flow');
+            await page.fill('#schCount', '1');
+            await page.fill('#schInterval', '60');
+            await page.fill('#schDate', '2030-01-05');
+
+            await page.click('#newScheduleModal .btn-preview');
+            await page.waitForSelector('#execOrderPreviewModal');
+
+            expect(await page.locator('#execOrderPreviewBanner .conflict-banner').count()).toBe(0);
+            expect(await page.locator('#execOrderTable .conflict-row').count()).toBe(0);
+
+            await page.click('#execOrderPreviewModal .btn-cancel');
+            await page.waitForSelector('#execOrderPreviewModal', { state: 'detached' });
         });
 
         it('altera ativo/inativo do agendamento', async () => {
@@ -371,6 +392,29 @@ describe('FLUXO E2E', () => {
         it('remove agendamento com confirmacao', async () => {
             await page.click('.schedule-card .btn-remove');
             await page.waitForSelector('#schedulesContainer .empty-state');
+        });
+
+        it('digita no horario do preview sem perder o input', async () => {
+            await page.click('#schedulesModal .btn-new');
+            await page.waitForSelector('#newScheduleModal');
+            await page.selectOption('#schFlow', 'rec_flow');
+            await page.fill('#schCount', '2');
+            await page.fill('#schInterval', '60');
+            await page.fill('#schDate', '2030-01-01');
+            await page.click('#newScheduleModal .btn-preview');
+            await page.waitForSelector('#execOrderPreviewModal');
+
+            const input = page.locator('#execOrderTable tbody tr').first().locator('.time-input');
+            const before = await input.evaluateHandle((el) => el);
+            await input.fill('2030-01-02T10:30');
+            const after = await input.evaluateHandle((el) => el);
+            const sameElement = await page.evaluate(({ b, a }) => b === a, { b: before, a: after });
+
+            expect(sameElement).toBe(true);
+            expect(await input.inputValue()).toContain('2030-01-02T10:30');
+
+            await page.click('#execOrderPreviewModal .btn-cancel');
+            await page.waitForSelector('#execOrderPreviewModal', { state: 'detached' });
         });
 
         it('fecha tela de agendamentos', async () => {

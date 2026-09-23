@@ -139,19 +139,35 @@ export class RecordingController {
     private _renderQueue(): void {
         const list = document.getElementById('queueList');
         if (!list) return;
-        list.innerHTML = '';
-        this._recordingQueue.forEach((item, i) => {
-            const el = document.createElement('div');
-            el.className = `action-item ${getActionClass(item)}`;
-            el.textContent = getActionLabel(item);
 
-            const btn = document.createElement('button');
-            btn.className = 'action-remove';
-            btn.textContent = '✕';
-            btn.addEventListener('click', () => this.removeFromQueue(i));
-            el.appendChild(btn);
-            list.appendChild(el);
+        const existing = Array.from(list.children) as HTMLElement[];
+        this._recordingQueue.forEach((item, i) => {
+            let el = existing[i];
+            if (!el) {
+                el = document.createElement('div');
+                el.className = 'action-item';
+                el.textContent = getActionLabel(item);
+                const btn = document.createElement('button');
+                btn.className = 'action-remove';
+                btn.textContent = '✕';
+                btn.addEventListener('click', () => this.removeFromQueue(parseInt(btn.dataset.index || '0', 10)));
+                el.appendChild(btn);
+                list.appendChild(el);
+            }
+            const newClass = `action-item ${getActionClass(item)}`;
+            if (el.className !== newClass) el.className = newClass;
+            el.dataset.index = String(i);
+            const textNode = el.firstChild;
+            if (textNode && textNode.nodeType === Node.TEXT_NODE && textNode.textContent !== getActionLabel(item)) {
+                textNode.textContent = getActionLabel(item);
+            }
+            const btn = el.querySelector('.action-remove') as HTMLElement;
+            if (btn) btn.dataset.index = String(i);
         });
+
+        while (list.children.length > this._recordingQueue.length) {
+            list.lastElementChild!.remove();
+        }
     }
 
     private _renderKeyboard(): void {

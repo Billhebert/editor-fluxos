@@ -23,3 +23,10 @@ export interface VariablePoolData {
 export type ScheduleMode = 'one-shot' | 'recurring';
 
 export type InstanceStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface ReservedBlock {
+    start: number;
+    end: number;
+    scheduleId?: string;
+    instanceId?: number;
+}

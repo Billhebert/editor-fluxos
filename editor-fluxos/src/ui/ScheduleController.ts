@@ -1,11 +1,14 @@
 import { VariablePool, RawAction, ScheduleMode } from '../domain';
 import { Schedule, ExecutionInstance } from '../domain';
-import { ScheduleManager, ScheduleConflictChecker } from '../use-cases';
+import { ScheduleManager } from '../use-cases';
+import { IScheduleConflictService } from '../adapters';
 import { Toast } from './Toast';
 import { ScheduleListView } from './schedules/ScheduleListView';
 import { ScheduleDetailView } from './schedules/ScheduleDetailView';
 import { NewScheduleView } from './schedules/NewScheduleView';
 import { PreviewView } from './schedules/PreviewView';
+import { ScheduleCardVM } from './schedules/dto';
+import { WEEK_DAYS } from '../domain/constants';
 
 export interface ScheduleContext {
     getFluxos(): Record<string, RawAction[]>;
@@ -17,14 +20,16 @@ export interface ScheduleContext {
 
 export class ScheduleController {
     private _ctx: ScheduleContext;
+    private _conflictService: IScheduleConflictService;
     private _schedules: Schedule[] = [];
     private _listView: ScheduleListView;
     private _detailView: ScheduleDetailView;
     private _newView: NewScheduleView;
     private _previewView: PreviewView;
 
-    constructor(ctx: ScheduleContext) {
+    constructor(ctx: ScheduleContext, conflictService: IScheduleConflictService) {
         this._ctx = ctx;
+        this._conflictService = conflictService;
         this._listView = new ScheduleListView();
         this._detailView = new ScheduleDetailView();
         this._newView = new NewScheduleView();
@@ -43,33 +48,66 @@ export class ScheduleController {
     }
 
     private _showList(): void {
-        this._listView.show(this._schedules, {
+        this._listView.show(this._buildViewModels(), {
             onClose: () => {},
             onNew: () => this._openNewSchedule(),
-            getConflicts: (sch) => ScheduleConflictChecker.conflictCount(sch, this._schedules),
-            onToggle: async (sch, active) => {
-                sch.active = active;
-                await this._persist();
-                if (active) {
-                    const count = ScheduleConflictChecker.conflictCount(sch, this._schedules);
-                    if (count > 0) {
-                        Toast.warning(`Atencao: ${count} execucao(es) deste agendamento conflitam com horarios de outros agendamentos ativos`);
-                    }
-                }
-                this._showList();
-            },
-            onRemove: async (i) => {
-                if (!confirm('Remover este agendamento?')) return;
-                this._schedules.splice(i, 1);
-                await this._persist();
-                this._showList();
-                Toast.info('Agendamento removido');
-            },
-            onView: (sch) => this._openDetail(sch)
+            onToggle: (scheduleId, active) => this._toggleSchedule(scheduleId, active),
+            onRemove: (index) => this._removeSchedule(index),
+            onView: (scheduleId) => this._openDetail(scheduleId)
         });
     }
 
-    private _openDetail(sch: Schedule): void {
+    private async _toggleSchedule(scheduleId: string, active: boolean): Promise<void> {
+        const sch = this._schedules.find(s => s.id === scheduleId);
+        if (!sch) return;
+        sch.active = active;
+        await this._persist();
+        if (active) {
+            const count = this._conflictService.conflictCountInSet(sch, this._schedules);
+            if (count > 0) {
+                Toast.warning(`Atencao: ${count} execucao(es) deste agendamento conflitam com horarios de outros agendamentos ativos`);
+            }
+        }
+        this._listView.update(this._buildViewModels());
+    }
+
+    private async _removeSchedule(index: number): Promise<void> {
+        if (!confirm('Remover este agendamento?')) return;
+        this._schedules.splice(index, 1);
+        await this._persist();
+        this._listView.update(this._buildViewModels());
+        Toast.info('Agendamento removido');
+    }
+
+    private _buildViewModels(): ScheduleCardVM[] {
+        return this._schedules.map(sch => {
+            const next = sch.executionOrder
+                .filter(inst => inst.status === 'pending')
+                .sort((a, b) => a.gatilhoTime - b.gatilhoTime)[0];
+            return {
+                scheduleId: sch.id,
+                flowName: sch.flowName,
+                active: sch.active,
+                conflictCount: sch.active ? this._conflictService.conflictCountInSet(sch, this._schedules) : 0,
+                total: sch.executionOrder.length,
+                completed: sch.executionOrder.filter(inst => inst.status === 'completed').length,
+                next: next ? new Date(next.gatilhoTime).toLocaleString('pt-BR') : 'Nenhum',
+                modeLabel: sch.mode === 'recurring'
+                    ? `Recorrente (${sch.days.map(d => WEEK_DAYS[d]).join(', ')})`
+                    : `Unico (${sch.date})`,
+                dateRangeLabel: sch.dataInicio || sch.dataFim
+                    ? `📅 ${sch.dataInicio || '?'} → ${sch.dataFim || '?'}`
+                    : '',
+                obrigatorioValor: sch.obrigatorioValor || 'N/A',
+                repeticoesLabel: `${sch.repeticoes || sch.executionOrder.length}x`,
+                intervaloLabel: `${sch.intervaloMinimo}s`,
+            };
+        });
+    }
+
+    private _openDetail(scheduleId: string): void {
+        const sch = this._schedules.find(s => s.id === scheduleId);
+        if (!sch) return;
         this._detailView.show(sch, {
             onBack: () => this._showList()
         });
@@ -103,17 +141,28 @@ export class ScheduleController {
         obrigValor: string; count: number; interval: number;
         dataInicio: string | null; dataFim: string | null;
     }): void {
+        const refreshConflicts = () => {
+            const projected = {
+                id: 'preview',
+                active: true,
+                intervaloMinimo: r.interval,
+                executionOrder: r.order,
+            } as unknown as Schedule;
+            this._previewView.setConflicts(
+                this._conflictService.conflictingInstanceIds(projected, this._schedules)
+            );
+        };
+
         this._previewView.show(r.flowName, r.order, {
             onCancel: () => this._showList(),
-            onValidate: () => {
-                const projected = {
-                    id: 'preview',
-                    active: true,
-                    intervaloMinimo: r.interval,
-                    executionOrder: r.order,
-                } as unknown as Schedule;
-                const byInstance = ScheduleConflictChecker.conflicts(projected, this._schedules);
-                return r.order.map(inst => inst.id).filter(id => byInstance.has(id));
+            onTimeChanged: (idx, timeMs) => {
+                r.order[idx].gatilhoTime = timeMs;
+                refreshConflicts();
+            },
+            onRemove: (idx) => {
+                r.order.splice(idx, 1);
+                this._previewView.removeRow(idx);
+                refreshConflicts();
             },
             onConfirm: async () => {
                 const schedule = new Schedule({
@@ -138,5 +187,7 @@ export class ScheduleController {
                 Toast.success(`Agendamento criado com ${r.order.length} execucoes!`);
             }
         });
+
+        refreshConflicts();
     }
 }

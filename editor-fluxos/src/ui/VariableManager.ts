@@ -56,18 +56,29 @@ export class VariableManager {
     renderVariables(): void {
         const container = document.getElementById('variablesContainer');
         if (!container) return;
-        container.innerHTML = '';
 
-        const addTag = (text: string, cssClass: string) => {
-            const tag = document.createElement('span');
-            tag.className = `variable-tag ${cssClass}`;
-            tag.textContent = text;
-            tag.addEventListener('click', () => this._ctx.recording.addToQueue(text));
-            container.appendChild(tag);
-        };
+        const tags: { text: string; cssClass: string }[] = [
+            { text: BUILT_IN_VARS.obrigatorio, cssClass: 'obrigatorio' },
+            { text: BUILT_IN_VARS.opcional, cssClass: 'opcional' },
+            ...this._variables.map(v => ({ text: v, cssClass: 'custom' })),
+        ];
 
-        addTag(BUILT_IN_VARS.obrigatorio, 'obrigatorio');
-        addTag(BUILT_IN_VARS.opcional, 'opcional');
-        this._variables.forEach(v => addTag(v, 'custom'));
+        const existing = Array.from(container.children) as HTMLElement[];
+        const seen = new Set<HTMLElement>();
+        tags.forEach((tag, i) => {
+            let el = existing[i];
+            if (!el) {
+                el = document.createElement('span');
+                el.addEventListener('click', () => this._ctx.recording.addToQueue(el.textContent || ''));
+                container.appendChild(el);
+            }
+            el.className = `variable-tag ${tag.cssClass}`;
+            el.textContent = tag.text;
+            seen.add(el);
+        });
+
+        for (const el of existing) {
+            if (!seen.has(el)) el.remove();
+        }
     }
 }

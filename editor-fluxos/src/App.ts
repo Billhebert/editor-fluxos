@@ -1,5 +1,5 @@
 import { Flow, RawAction } from './domain';
-import { FlowExecutor, ScheduleManager, FlowManager, FlowSanitizer } from './use-cases';
+import { FlowExecutor, ScheduleManager, FlowManager, FlowSanitizer, ScheduleConflictService } from './use-cases';
 import { LocalStorageFlowRepo, ElectronIpcExecutor, UndoManager, IpcScheduleRepo, eventBus, NodeIpcFileDialog } from './infrastructure';
 import { ipc } from './infrastructure/IpcService';
 import { FlowRenderer, Toast, RecordingController, ScheduleController, VariableConfigController } from './ui';
@@ -91,7 +91,7 @@ export class App {
             scheduleManager: this._scheduleManager,
             loadSchedules: () => ipc.getSchedules(),
             saveSchedules: (s) => ipc.saveSchedules(s)
-        });
+        }, new ScheduleConflictService());
 
         this._varConfigCtrl = new VariableConfigController({
             getVarConfig: () => this._varManager.varConfig,

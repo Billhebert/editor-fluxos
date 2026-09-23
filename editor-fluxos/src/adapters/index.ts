@@ -8,3 +8,4 @@ export { Events } from './IEventBus';
 export type { IUndoManager, UndoableActionPort } from './IUndoManager';
 export type { IFileSystem } from './IFileSystem';
 export type { IFileDialogService } from './IFileDialogService';
+export type { IScheduleConflictService } from './IScheduleConflictService';

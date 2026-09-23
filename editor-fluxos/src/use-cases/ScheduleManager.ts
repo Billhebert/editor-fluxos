@@ -1,11 +1,12 @@
 import { Schedule, ScheduleConfig } from '../domain/Schedule';
 import { ExecutionInstance } from '../domain/ExecutionInstance';
 import { VariablePool } from '../domain/VariablePool';
-import { RawAction, InstanceStatus } from '../domain/types';
+import { RawAction, InstanceStatus, ReservedBlock } from '../domain/types';
 import { IScheduleRepository } from '../adapters/IScheduleRepository';
 import { NotFoundError } from '../domain/errors';
 import { VariableResolver } from './VariableResolver';
-import { ScheduleConflictChecker, ReservedBlock } from './ScheduleConflictChecker';
+import { ScheduleConflictDetector } from './ScheduleConflictDetector';
+import { ScheduleGenerationResolver } from './ScheduleGenerationResolver';
 
 export class ScheduleManager {
     private _repo: IScheduleRepository;
@@ -157,7 +158,7 @@ export class ScheduleManager {
 
         const dayStartList = this._computeDayStartList(date, dataInicio, dataFim, days);
 
-        const reserved = ScheduleConflictChecker.collectReservedBlocks(existingSchedules || []);
+        const reserved = ScheduleConflictDetector.collectReservedBlocks(existingSchedules || []);
         const reservedByDay = new Map<string, ReservedBlock[]>();
         for (const block of reserved) {
             const key = this._dayKey(block.start);
@@ -172,7 +173,7 @@ export class ScheduleManager {
             const dayReserved = reservedByDay.get(this._dayKey(dayStart)) || [];
             const windowStart = dayStart + startMin * 60 * 1000;
             const windowEnd = dayStart + endMin * 60 * 1000;
-            const resolved = ScheduleConflictChecker.autoResolve(raw, minIntervalMs, dayReserved, windowStart, windowEnd);
+            const resolved = ScheduleGenerationResolver.autoResolve(raw, minIntervalMs, dayReserved, windowStart, windowEnd);
             this._lastUnsettledCount += resolved.unsettled.length;
             allTimestamps.push(...resolved.adjusted);
         }
