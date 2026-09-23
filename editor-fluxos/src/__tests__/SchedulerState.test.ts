@@ -111,4 +111,33 @@ describe('SchedulerState', () => {
 
         expect(schedule.executionOrder[0].status).toBe('running');
     });
+
+    it('recupera execucoes interrompidas (running -> pending) ao carregar', () => {
+        const state = new SchedulerState();
+        const schedule = makeSchedule('s1', 'f1', {
+            executionOrder: [
+                { id: 1, status: 'running', resolvedActions: ['a'], gatilhoTime: Date.now() - 1000 },
+                { id: 2, status: 'pending', resolvedActions: ['b'], gatilhoTime: Date.now() + 1000 },
+                { id: 3, status: 'completed', resolvedActions: ['c'], gatilhoTime: Date.now() - 2000 },
+            ],
+        });
+        state.setSchedules([schedule]);
+
+        const statuses = schedule.executionOrder.map(i => i.status);
+        expect(statuses).toEqual(['pending', 'pending', 'completed']);
+    });
+
+    it('nao altera o status de instancias nao interrompidas ao carregar', () => {
+        const state = new SchedulerState();
+        const schedule = makeSchedule('s1', 'f1', {
+            executionOrder: [
+                { id: 1, status: 'completed', resolvedActions: ['a'], gatilhoTime: Date.now() - 1000 },
+                { id: 2, status: 'pending', resolvedActions: ['b'], gatilhoTime: Date.now() + 1000 },
+            ],
+        });
+        state.setSchedules([schedule]);
+
+        const statuses = schedule.executionOrder.map(i => i.status);
+        expect(statuses).toEqual(['completed', 'pending']);
+    });
 });

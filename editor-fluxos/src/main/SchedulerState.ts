@@ -14,6 +14,19 @@ export class SchedulerState {
 
     setSchedules(data: any[]): void {
         this._schedules = data;
+        this._recoverInterrupted();
+    }
+
+    private _recoverInterrupted(): void {
+        for (const schedule of this._schedules) {
+            if (Array.isArray(schedule.executionOrder)) {
+                for (const instance of schedule.executionOrder) {
+                    if (instance && instance.status === 'running') {
+                        instance.status = 'pending';
+                    }
+                }
+            }
+        }
     }
 
     updateInstanceStatus(scheduleId: string, instanceId: number, status: string): boolean {

@@ -104,4 +104,48 @@ describe('ExecutionController', () => {
 
         expect(ctx.statusSink.updateInstanceStatus).toHaveBeenCalledWith('s1', 2, 'failed');
     });
+
+    it('serializa execucoes agendadas concorrentes (nunca em paralelo)', async () => {
+        let concurrent = 0;
+        let maxConcurrent = 0;
+        const actionsRun: string[][] = [];
+
+        const busyCtx = createMockCtx({
+            flowExecutor: {
+                isRunning: false,
+                execute: vi.fn().mockResolvedValue(undefined),
+                executeActions: vi.fn((actions: any[]) => {
+                    concurrent++;
+                    maxConcurrent = Math.max(maxConcurrent, concurrent);
+                    actionsRun.push(actions);
+                    return new Promise<void>(resolve => {
+                        setTimeout(() => { concurrent--; resolve(); }, 10);
+                    });
+                }),
+            } as unknown as FlowExecutor,
+        });
+        const busyCtrl = new ExecutionController(busyCtx, renderer);
+
+        await Promise.all([
+            busyCtrl.executeScheduledInstance({ scheduleId: 's1', instanceId: 1, resolvedActions: ['a'], flowName: 'f' }),
+            busyCtrl.executeScheduledInstance({ scheduleId: 's1', instanceId: 2, resolvedActions: ['b'], flowName: 'f' }),
+            busyCtrl.executeScheduledInstance({ scheduleId: 's1', instanceId: 3, resolvedActions: ['c'], flowName: 'f' }),
+        ]);
+
+        expect(maxConcurrent).toBe(1);
+        expect(actionsRun).toEqual([['a'], ['b'], ['c']]);
+        expect(busyCtx.statusSink.updateInstanceStatus).toHaveBeenCalledTimes(3);
+        expect(busyCtx.statusSink.updateInstanceStatus).not.toHaveBeenCalledWith('s1', expect.any(Number), 'failed');
+    });
+
+    it('nunca marca failed por concorrencia entre agendados', async () => {
+        await Promise.all([
+            ctrl.executeScheduledInstance({ scheduleId: 's1', instanceId: 1, resolvedActions: ['enter'], flowName: 'f' }),
+            ctrl.executeScheduledInstance({ scheduleId: 's1', instanceId: 2, resolvedActions: ['tab'], flowName: 'f' }),
+        ]);
+
+        expect(ctx.statusSink.updateInstanceStatus).toHaveBeenCalledTimes(2);
+        expect(ctx.statusSink.updateInstanceStatus).not.toHaveBeenCalledWith('s1', 1, 'failed');
+        expect(ctx.statusSink.updateInstanceStatus).not.toHaveBeenCalledWith('s1', 2, 'failed');
+    });
 });

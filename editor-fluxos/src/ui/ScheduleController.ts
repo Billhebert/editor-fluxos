@@ -1,6 +1,6 @@
 import { VariablePool, RawAction, ScheduleMode } from '../domain';
 import { Schedule, ExecutionInstance } from '../domain';
-import { ScheduleManager } from '../use-cases/ScheduleManager';
+import { ScheduleManager, ScheduleConflictChecker } from '../use-cases';
 import { Toast } from './Toast';
 import { ScheduleListView } from './schedules/ScheduleListView';
 import { ScheduleDetailView } from './schedules/ScheduleDetailView';
@@ -46,9 +46,17 @@ export class ScheduleController {
         this._listView.show(this._schedules, {
             onClose: () => {},
             onNew: () => this._openNewSchedule(),
+            getConflicts: (sch) => ScheduleConflictChecker.conflictCount(sch, this._schedules),
             onToggle: async (sch, active) => {
                 sch.active = active;
                 await this._persist();
+                if (active) {
+                    const count = ScheduleConflictChecker.conflictCount(sch, this._schedules);
+                    if (count > 0) {
+                        Toast.warning(`Atencao: ${count} execucao(es) deste agendamento conflitam com horarios de outros agendamentos ativos`);
+                    }
+                }
+                this._showList();
             },
             onRemove: async (i) => {
                 if (!confirm('Remover este agendamento?')) return;
@@ -72,13 +80,16 @@ export class ScheduleController {
             onClose: () => this._showList(),
             generateOrder: (template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days) => {
                 const order = this._ctx.scheduleManager.generateExecutionOrder(
-                    template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig(), dataInicio, dataFim, days
+                    template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig(), dataInicio, dataFim, days, this._schedules
                 );
                 const [sh, sm] = timeStart.split(':').map(Number);
                 const [eh, em] = timeEnd.split(':').map(Number);
                 const windowSeconds = ((eh * 60 + em) - (sh * 60 + sm)) * 60;
                 if ((count - 1) * Math.max(interval, 1) > windowSeconds) {
                     Toast.warning(`Aviso: ${count}x a cada ${interval}s nao cabe em ${timeStart}-${timeEnd}; sera distribuido aleatoriamente na janela disponivel`);
+                }
+                if (this._ctx.scheduleManager.lastUnsettledCount > 0) {
+                    Toast.warning(`${this._ctx.scheduleManager.lastUnsettledCount} execucao(es) nao couberam na janela sem conflitar com outros agendamentos; horarios aproximados`);
                 }
                 return order;
             },
@@ -94,6 +105,16 @@ export class ScheduleController {
     }): void {
         this._previewView.show(r.flowName, r.order, {
             onCancel: () => this._showList(),
+            onValidate: () => {
+                const projected = {
+                    id: 'preview',
+                    active: true,
+                    intervaloMinimo: r.interval,
+                    executionOrder: r.order,
+                } as unknown as Schedule;
+                const byInstance = ScheduleConflictChecker.conflicts(projected, this._schedules);
+                return r.order.map(inst => inst.id).filter(id => byInstance.has(id));
+            },
             onConfirm: async () => {
                 const schedule = new Schedule({
                     flowName: r.flowName,

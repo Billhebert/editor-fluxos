@@ -5,10 +5,12 @@ import { RawAction, InstanceStatus } from '../domain/types';
 import { IScheduleRepository } from '../adapters/IScheduleRepository';
 import { NotFoundError } from '../domain/errors';
 import { VariableResolver } from './VariableResolver';
+import { ScheduleConflictChecker, ReservedBlock } from './ScheduleConflictChecker';
 
 export class ScheduleManager {
     private _repo: IScheduleRepository;
     private _resolverFactory: (pool: VariablePool) => VariableResolver;
+    private _lastUnsettledCount: number = 0;
 
     constructor(
         scheduleRepository: IScheduleRepository,
@@ -16,6 +18,10 @@ export class ScheduleManager {
     ) {
         this._repo = scheduleRepository;
         this._resolverFactory = resolverFactory || ((pool) => new VariableResolver(pool));
+    }
+
+    get lastUnsettledCount(): number {
+        return this._lastUnsettledCount;
     }
 
     async getAllSchedules(): Promise<Schedule[]> {
@@ -31,6 +37,7 @@ export class ScheduleManager {
         flowTemplate: RawAction[],
         variablePool: VariablePool
     ): Promise<Schedule> {
+        const existingSchedules = await this._repo.findAll();
         const order = this.generateExecutionOrder(
             flowTemplate,
             config.obrigatorioValor || '',
@@ -42,7 +49,8 @@ export class ScheduleManager {
             variablePool,
             config.dataInicio || null,
             config.dataFim || null,
-            config.days
+            config.days,
+            existingSchedules
         );
 
         const schedule = new Schedule({ ...config, executionOrder: order });
@@ -96,7 +104,8 @@ export class ScheduleManager {
         variablePool?: VariablePool,
         dataInicio?: string | null,
         dataFim?: string | null,
-        days?: number[]
+        days?: number[],
+        existingSchedules?: Schedule[]
     ): ExecutionInstance[] {
         const [sh, sm] = timeStart.split(':').map(Number);
         const [eh, em] = timeEnd.split(':').map(Number);
@@ -116,32 +125,73 @@ export class ScheduleManager {
         const resolver = this._resolverFactory(pool);
         const opcionalIterator = pool.createOpcionalIterator();
         let instanceId = 0;
+        this._lastUnsettledCount = 0;
 
         const newOffsets = (): number[] => Array.from({ length: count }, () => Math.random()).sort((a, b) => a - b);
 
-        const positionFor = (dayStart: number, i: number, offsets: number[]): number => {
-            let posSeconds: number;
-            if (canFit) {
-                posSeconds = startMin * 60 + offsets[i] * usableSeconds + i * minIntervalSeconds;
-            } else {
-                const slotSeconds = windowSeconds / count;
-                posSeconds = startMin * 60 + i * slotSeconds + offsets[i] * slotSeconds;
+        const timestampsForDay = (dayStart: number): number[] => {
+            const offsets = newOffsets();
+            const raw: number[] = [];
+            for (let i = 0; i < count; i++) {
+                let posSeconds: number;
+                if (canFit) {
+                    posSeconds = startMin * 60 + offsets[i] * usableSeconds + i * minIntervalSeconds;
+                } else {
+                    const slotSeconds = windowSeconds / count;
+                    posSeconds = startMin * 60 + i * slotSeconds + offsets[i] * slotSeconds;
+                }
+                raw.push(dayStart + Math.floor(posSeconds) * 1000);
             }
-            return dayStart + Math.floor(posSeconds) * 1000;
-        };
 
-        const enforceMinSpacing = (timestamps: number[]): void => {
-            if (!canFit) return;
-            timestamps.sort((a, b) => a - b);
-            for (let i = 1; i < timestamps.length; i++) {
-                if (timestamps[i] - timestamps[i - 1] < minIntervalMs) {
-                    timestamps[i] = timestamps[i - 1] + minIntervalMs;
+            if (canFit) {
+                raw.sort((a, b) => a - b);
+                for (let i = 1; i < raw.length; i++) {
+                    if (raw[i] - raw[i - 1] < minIntervalMs) {
+                        raw[i] = raw[i - 1] + minIntervalMs;
+                    }
                 }
             }
+
+            return raw;
         };
 
+        const dayStartList = this._computeDayStartList(date, dataInicio, dataFim, days);
+
+        const reserved = ScheduleConflictChecker.collectReservedBlocks(existingSchedules || []);
+        const reservedByDay = new Map<string, ReservedBlock[]>();
+        for (const block of reserved) {
+            const key = this._dayKey(block.start);
+            const list = reservedByDay.get(key) || [];
+            list.push(block);
+            reservedByDay.set(key, list);
+        }
+
+        const allTimestamps: number[] = [];
+        for (const dayStart of dayStartList) {
+            const raw = timestampsForDay(dayStart);
+            const dayReserved = reservedByDay.get(this._dayKey(dayStart)) || [];
+            const windowStart = dayStart + startMin * 60 * 1000;
+            const windowEnd = dayStart + endMin * 60 * 1000;
+            const resolved = ScheduleConflictChecker.autoResolve(raw, minIntervalMs, dayReserved, windowStart, windowEnd);
+            this._lastUnsettledCount += resolved.unsettled.length;
+            allTimestamps.push(...resolved.adjusted);
+        }
+
+        return allTimestamps.map((ts) => {
+            instanceId++;
+            return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor, opcionalIterator));
+        });
+    }
+
+    private _computeDayStartList(
+        date: string,
+        dataInicio?: string | null,
+        dataFim?: string | null,
+        days?: number[]
+    ): number[] {
+        const dayStarts: number[] = [];
+
         if (dataInicio && dataFim) {
-            const allTimestamps: number[] = [];
             const [dIYear, dIMonth, dIDay] = dataInicio.split('-').map(Number);
             const [dFYear, dFMonth, dFDay] = dataFim.split('-').map(Number);
             const rangeStart = new Date(dIYear, dIMonth - 1, dIDay);
@@ -149,46 +199,21 @@ export class ScheduleManager {
 
             const current = new Date(rangeStart);
             while (current <= rangeEnd) {
-                const year = current.getFullYear();
-                const month = current.getMonth();
-                const day = current.getDate();
-                const dayStart = new Date(year, month, day, 0, 0, 0).getTime();
-                const offsets = newOffsets();
-
-                if (days && days.length > 0 && !days.includes(current.getDay())) {
-                    current.setDate(current.getDate() + 1);
-                    continue;
+                if (!days || days.length === 0 || days.includes(current.getDay())) {
+                    dayStarts.push(new Date(current.getFullYear(), current.getMonth(), current.getDate(), 0, 0, 0).getTime());
                 }
-
-                for (let i = 0; i < count; i++) {
-                    allTimestamps.push(positionFor(dayStart, i, offsets));
-                }
-
                 current.setDate(current.getDate() + 1);
             }
-
-            enforceMinSpacing(allTimestamps);
-
-            return allTimestamps.map((ts) => {
-                instanceId++;
-                return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor, opcionalIterator));
-            });
+            return dayStarts;
         }
 
-        const timestamps: number[] = [];
         const [year, month, day] = date.split('-').map(Number);
-        const dayStart = new Date(year, month - 1, day, 0, 0, 0).getTime();
-        const offsets = newOffsets();
+        dayStarts.push(new Date(year, month - 1, day, 0, 0, 0).getTime());
+        return dayStarts;
+    }
 
-        for (let i = 0; i < count; i++) {
-            timestamps.push(positionFor(dayStart, i, offsets));
-        }
-
-        enforceMinSpacing(timestamps);
-
-        return timestamps.map((ts) => {
-            instanceId++;
-            return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor, opcionalIterator));
-        });
+    private _dayKey(ts: number): string {
+        const d = new Date(ts);
+        return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
     }
 }

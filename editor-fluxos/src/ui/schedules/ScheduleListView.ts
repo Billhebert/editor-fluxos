@@ -8,6 +8,7 @@ export interface ScheduleListCallbacks {
     onToggle(schedule: Schedule, active: boolean): void;
     onRemove(index: number): void;
     onView(schedule: Schedule): void;
+    getConflicts(schedule: Schedule): number;
 }
 
 export class ScheduleListView {
@@ -61,11 +62,17 @@ export class ScheduleListView {
                 ? `📅 ${sch.dataInicio || '?'} → ${sch.dataFim || '?'}`
                 : '';
 
+            const conflictCount = sch.active ? callbacks.getConflicts(sch) : 0;
+            const conflictBadge = conflictCount > 0
+                ? `<span class="conflict-badge">⚠ ${conflictCount} conflito(s)</span>`
+                : '';
+
             const card = document.createElement('div');
             card.className = 'schedule-card';
             card.innerHTML = `
                 <div class="schedule-card-header">
                     <h4>${escapeHtml(sch.flowName)}</h4>
+                    ${conflictBadge}
                     <label class="toggle">
                         <input type="checkbox" ${sch.active ? 'checked' : ''} />
                         <span class="toggle-slider"></span>

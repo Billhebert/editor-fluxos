@@ -580,4 +580,61 @@ describe('ScheduleManager', () => {
                 .rejects.toThrow('db fail');
         });
     });
+
+    describe('generateExecutionOrder - conflito com agendamentos existentes', () => {
+        it('desloca execucoes para nao sobrepor blocos reservados por outros agendamentos', async () => {
+            const existing = await manager.createSchedule(
+                { flowName: 'existing', repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '09:00', intervaloMinimo: 3600 },
+                ['enter'], pool
+            );
+            const existingTs = existing.executionOrder[0].gatilhoTime;
+
+            const result = await manager.createSchedule(
+                { flowName: 'new', repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '09:00', intervaloMinimo: 60 },
+                ['enter'], pool
+            );
+
+            const newTs = result.executionOrder[0].gatilhoTime;
+            expect(newTs).toBeGreaterThanOrEqual(existingTs + 3600 * 1000);
+            expect(manager.lastUnsettledCount).toBe(1);
+        });
+
+        it('nao desloca quando nao existem agendamentos ativos', async () => {
+            const existing = await manager.createSchedule(
+                { flowName: 'paused', active: false, repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '09:00', intervaloMinimo: 3600 },
+                ['enter'], pool
+            );
+            const existingTs = existing.executionOrder[0].gatilhoTime;
+
+            const result = await manager.createSchedule(
+                { flowName: 'new', repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '09:00', intervaloMinimo: 60 },
+                ['enter'], pool
+            );
+
+            const newTs = result.executionOrder[0].gatilhoTime;
+            const d = new Date(newTs);
+            const sec = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+            expect(sec).toBeGreaterThanOrEqual(8 * 3600);
+            expect(sec).toBeLessThanOrEqual(9 * 3600);
+            expect(newTs).not.toBe(existingTs + 3600 * 1000);
+            expect(manager.lastUnsettledCount).toBe(0);
+        });
+
+        it('gera sem conflitos em janela com folga suficiente', async () => {
+            const existing = await manager.createSchedule(
+                { flowName: 'existing', repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '08:05', intervaloMinimo: 300 },
+                ['enter'], pool
+            );
+
+            const result = await manager.createSchedule(
+                { flowName: 'new', repeticoes: 1, date: '2026-09-07', timeStart: '11:00', timeEnd: '12:00', intervaloMinimo: 60 },
+                ['enter'], pool
+            );
+
+            const newTs = result.executionOrder[0].gatilhoTime;
+            expect(newTs).toBeGreaterThanOrEqual(new Date(2026, 8, 7, 11, 0, 0).getTime());
+            expect(newTs).toBeLessThanOrEqual(new Date(2026, 8, 7, 12, 0, 0).getTime());
+            expect(manager.lastUnsettledCount).toBe(0);
+        });
+    });
 });
