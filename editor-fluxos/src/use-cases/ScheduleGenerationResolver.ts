@@ -28,8 +28,12 @@ export class ScheduleGenerationResolver {
             let cand = Math.max(timestamps[idx], windowStart, previous);
 
             let blocker = this._overlapBlock(cand, minIntervalMs, blocks);
+            if (!blocker && cand === previous) {
+                cand = previous + minIntervalMs;
+                blocker = this._overlapBlock(cand, minIntervalMs, blocks);
+            }
             while (blocker) {
-                cand = blocker.end;
+                cand = Math.max(blocker.end, previous + minIntervalMs);
                 blocker = this._overlapBlock(cand, minIntervalMs, blocks);
             }
 

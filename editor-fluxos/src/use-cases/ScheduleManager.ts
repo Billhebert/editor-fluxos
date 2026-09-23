@@ -168,6 +168,7 @@ export class ScheduleManager {
         }
 
         const allTimestamps: number[] = [];
+        const approxFlags: boolean[] = [];
         for (const dayStart of dayStartList) {
             const raw = timestampsForDay(dayStart);
             const dayReserved = reservedByDay.get(this._dayKey(dayStart)) || [];
@@ -175,12 +176,19 @@ export class ScheduleManager {
             const windowEnd = dayStart + endMin * 60 * 1000;
             const resolved = ScheduleGenerationResolver.autoResolve(raw, minIntervalMs, dayReserved, windowStart, windowEnd);
             this._lastUnsettledCount += resolved.unsettled.length;
-            allTimestamps.push(...resolved.adjusted);
+            const unsettledSet = new Set(resolved.unsettled);
+            resolved.adjusted.forEach((ts, i) => {
+                allTimestamps.push(ts);
+                approxFlags.push(unsettledSet.has(i));
+            });
         }
 
+        let flagIndex = 0;
         return allTimestamps.map((ts) => {
             instanceId++;
-            return new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor, opcionalIterator));
+            const inst = new ExecutionInstance(instanceId, ts, resolver.resolveTemplate(template, obrigatorioValor, opcionalIterator));
+            inst.approx = approxFlags[flagIndex++];
+            return inst;
         });
     }
 

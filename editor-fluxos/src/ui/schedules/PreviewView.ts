@@ -46,19 +46,23 @@ export class PreviewView {
 
     setConflicts(instanceIds: Iterable<number>): void {
         this._conflictIds = new Set(instanceIds);
+        const approxCount = this._order.filter(i => i.approx === true).length;
         const banner = this._overlay?.querySelector('#execOrderPreviewBanner') as HTMLElement;
         if (banner) {
+            const parts: string[] = [];
             if (this._conflictIds.size > 0) {
-                banner.innerHTML = `<div class="conflict-banner">⚠ ${this._conflictIds.size} horario(s) conflitam com outros agendamentos ativos.</div>`;
-            } else {
-                banner.innerHTML = '';
+                parts.push(`<div class="conflict-banner">⚠ ${this._conflictIds.size} horario(s) conflitam com outros agendamentos ativos.</div>`);
             }
+            if (approxCount > 0) {
+                parts.push(`<div class="conflict-banner">⚠ ${approxCount} ordem(ns) nao couberam na janela; horarios aproximados</div>`);
+            }
+            banner.innerHTML = parts.join('');
         }
         if (!this._overlay) return;
         this._overlay.querySelectorAll<HTMLElement>('#execOrderTable tbody tr').forEach(row => {
             const idx = parseInt(row.dataset.idx!);
             const inst = this._order[idx];
-            row.classList.toggle('conflict-row', !Number.isNaN(idx) && !!inst && this._conflictIds.has(inst.id));
+            row.classList.toggle('conflict-row', !Number.isNaN(idx) && !!inst && (this._conflictIds.has(inst.id) || inst.approx === true));
         });
     }
 
@@ -89,10 +93,11 @@ export class PreviewView {
         this._order.forEach((inst, i) => {
             const localDT = formatLocalDateTimeEdit(inst.gatilhoTime);
             const actionsStr = inst.resolvedActions.map((a: any) => getActionLabel(a)).join(', ');
+            const isApprox = inst.approx === true;
 
-            html += `<tr data-idx="${i}">
+            html += `<tr data-idx="${i}"${isApprox ? ' class="conflict-row"' : ''}>
                 <td>${inst.id}</td>
-                <td><input type="text" value="${localDT}" placeholder="dd/mm/aaaa hh:mm" data-idx="${i}" class="time-input" /></td>
+                <td><input type="text" value="${localDT}" placeholder="dd/mm/aaaa hh:mm" data-idx="${i}" class="time-input" />${isApprox ? '<span class="conflict-badge">⚠ nao coube</span>' : ''}</td>
                 <td style="font-family:Consolas,monospace; font-size:12px; color:#a29bfe;">${actionsStr}</td>
                 <td><button class="btn btn-danger btn-sm btn-remove-item" data-idx="${i}">✕</button></td>
             </tr>`;

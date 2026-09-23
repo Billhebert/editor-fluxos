@@ -5,12 +5,14 @@ export class ExecutionInstance {
     gatilhoTime: number;
     resolvedActions: RawAction[];
     status: InstanceStatus;
+    approx: boolean;
 
-    constructor(id: number, gatilhoTime: number, resolvedActions: RawAction[], status: InstanceStatus = 'pending') {
+    constructor(id: number, gatilhoTime: number, resolvedActions: RawAction[], status: InstanceStatus = 'pending', approx: boolean = false) {
         this.id = id;
         this.gatilhoTime = gatilhoTime;
         this.resolvedActions = [...resolvedActions];
         this.status = status;
+        this.approx = approx;
     }
 
     get isPending(): boolean { return this.status === 'pending'; }
@@ -35,7 +37,8 @@ export class ExecutionInstance {
             id: this.id,
             gatilhoTime: this.gatilhoTime,
             status: this.status,
-            resolvedActions: this.resolvedActions
+            resolvedActions: this.resolvedActions,
+            approx: this.approx
         };
     }
 
@@ -44,7 +47,8 @@ export class ExecutionInstance {
             data.id,
             data.gatilhoTime ?? data.gatilho_timeStamp,
             data.resolvedActions || [],
-            data.status || 'pending'
+            data.status || 'pending',
+            data.approx === true
         );
     }
 }

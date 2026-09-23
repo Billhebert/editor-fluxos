@@ -58,6 +58,7 @@ export class ScheduleDetailView {
 
         const stats = this._getStats(order);
         const conflictSet = new Set(conflictIds);
+        const approxCount = order.filter(i => i.approx === true).length;
 
         let html = `
             <div style="display:flex; gap:16px; margin-bottom:12px; font-size:13px;">
@@ -69,6 +70,9 @@ export class ScheduleDetailView {
 
         if (conflictSet.size > 0) {
             html += `<div class="conflict-banner">⚠ ${conflictSet.size} ordem(ns) em conflito com horarios de outros agendamentos ativos</div>`;
+        }
+        if (approxCount > 0) {
+            html += `<div class="conflict-banner">⚠ ${approxCount} ordem(ns) nao couberam na janela; horarios aproximados</div>`;
         }
 
         html += `
@@ -82,11 +86,18 @@ export class ScheduleDetailView {
             const color = STATUS_COLORS[inst.status] || '#888';
             const label = STATUS_LABELS[inst.status] || inst.status;
             const isConflict = conflictSet.has(inst.id);
+            const isApprox = inst.approx === true;
+            const highlighted = isConflict || isApprox;
+            const marker = isConflict
+                ? ' <span class="conflict-badge">⚠ conflito</span>'
+                : isApprox
+                    ? ' <span class="conflict-badge">⚠ nao coube</span>'
+                    : '';
 
-            html += `<tr${isConflict ? ' class="conflict-row"' : ''}>
+            html += `<tr${highlighted ? ' class="conflict-row"' : ''}>
                 <td>${inst.id}</td>
                 <td style="color:${color}; font-weight:bold;">${label}</td>
-                <td style="color:#ccc;">${localDT}${isConflict ? ' <span class="conflict-badge">⚠ conflito</span>' : ''}</td>
+                <td style="color:#ccc;">${localDT}${marker}</td>
                 <td style="font-family:Consolas,monospace; font-size:12px; color:#a29bfe;">${escapeHtml(actionsStr)}</td>
             </tr>`;
         });

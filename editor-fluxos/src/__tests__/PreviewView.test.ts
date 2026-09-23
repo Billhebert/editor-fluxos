@@ -74,6 +74,19 @@ describe('PreviewView', () => {
         expect(callbacks.onTimeChanged).not.toHaveBeenCalled();
     });
 
+    it('marca linhas approx (nao couberam) mesmo sem conflictIds', () => {
+        const view = new PreviewView();
+        const insts = order(1000, 2000);
+        insts[1].approx = true;
+        view.show('fluxo', insts, callbacks);
+        view.setConflicts([]);
+
+        const rows = document.querySelectorAll('#execOrderTable tbody tr');
+        expect(rows[0].classList.contains('conflict-row')).toBe(false);
+        expect(rows[1].classList.contains('conflict-row')).toBe(true);
+        expect(document.querySelector('#execOrderPreviewBanner')!.textContent).toContain('nao couberam na janela');
+    });
+
     it('enfileira onRemove e removeRow preserva os demais indices', () => {
         const view = new PreviewView();
         view.show('fluxo', order(1000, 2000, 3000), callbacks);

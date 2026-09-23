@@ -650,5 +650,32 @@ describe('ScheduleManager', () => {
             expect(newTs).toBeLessThanOrEqual(new Date(2026, 8, 7, 12, 0, 0).getTime());
             expect(manager.lastUnsettledCount).toBe(0);
         });
+
+        it('marca como approx as execucoes empurradas para fora da janela e nao duplica horarios', async () => {
+            const random = vi.spyOn(Math, 'random');
+            try {
+                random.mockReturnValue(0.5);
+                await manager.createSchedule(
+                    { flowName: 'ocupado', repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '08:01', intervaloMinimo: 3600 },
+                    ['enter'], pool
+                );
+
+                const result = await manager.createSchedule(
+                    { flowName: 'novo', repeticoes: 5, date: '2026-09-07', timeStart: '08:00', timeEnd: '08:30', intervaloMinimo: 60 },
+                    ['enter'], pool
+                );
+
+                expect(result.executionOrder).toHaveLength(5);
+                result.executionOrder.forEach(inst => expect(inst.approx).toBe(true));
+                for (let i = 1; i < result.executionOrder.length; i++) {
+                    const diff = result.executionOrder[i].gatilhoTime - result.executionOrder[i - 1].gatilhoTime;
+                    expect(diff).toBeGreaterThanOrEqual(60 * 1000);
+                }
+                expect(new Set(result.executionOrder.map(i => i.gatilhoTime)).size).toBe(5);
+                expect(manager.lastUnsettledCount).toBe(5);
+            } finally {
+                random.mockRestore();
+            }
+        });
     });
 });

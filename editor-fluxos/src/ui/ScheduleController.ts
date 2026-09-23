@@ -89,6 +89,7 @@ export class ScheduleController {
                 flowName: sch.flowName,
                 active: sch.active,
                 conflictCount: sch.active ? this._conflictService.conflictCountInSet(sch, this._schedules) : 0,
+                approxCount: sch.executionOrder.filter(inst => inst.approx === true).length,
                 total: sch.executionOrder.length,
                 completed: sch.executionOrder.filter(inst => inst.status === 'completed').length,
                 next: next ? new Date(next.gatilhoTime).toLocaleString('pt-BR') : 'Nenhum',

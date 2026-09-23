@@ -44,5 +44,22 @@ describe('ScheduleGenerationResolver', () => {
             const result = ScheduleGenerationResolver.autoResolve([], 60 * 1000, [], 0, 3600 * 1000);
             expect(result).toEqual({ adjusted: [], unsettled: [] });
         });
+
+        it('nao cria horarios duplicados quando varios timestamps sao empurrados para o mesmo fim de bloco', () => {
+            const ts = [1000, 1100, 1200];
+            const reserved = [block(0, 20000)];
+            const result = ScheduleGenerationResolver.autoResolve(ts, 100, reserved, 0, 3600 * 1000);
+            for (let i = 1; i < result.adjusted.length; i++) {
+                expect(result.adjusted[i] - result.adjusted[i - 1]).toBeGreaterThanOrEqual(100);
+            }
+        });
+
+        it('marca como unsettled instancias que nao cabem na janela mesmo apos empurrar', () => {
+            const ts = [1000, 1100, 1200];
+            const reserved = [block(0, 20000)];
+            const result = ScheduleGenerationResolver.autoResolve(ts, 100, reserved, 0, 20000);
+            expect(result.adjusted[0]).toBe(20000);
+            expect(result.unsettled).toHaveLength(3);
+        });
     });
 });

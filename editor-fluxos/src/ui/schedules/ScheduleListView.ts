@@ -135,6 +135,17 @@ export class ScheduleListView {
         } else if (badge) {
             badge.remove();
         }
+        let approxBadge = card.querySelector('.approx-badge') as HTMLElement | null;
+        if (vm.approxCount > 0) {
+            if (!approxBadge) {
+                approxBadge = document.createElement('span');
+                approxBadge.className = 'approx-badge';
+                header?.insertBefore(approxBadge, header.querySelector('.toggle'));
+            }
+            approxBadge.textContent = `⚠ ${vm.approxCount} fora da janela`;
+        } else if (approxBadge) {
+            approxBadge.remove();
+        }
         const checkbox = card.querySelector('input[type=checkbox]') as HTMLInputElement;
         if (checkbox) checkbox.checked = vm.active;
         const dateRange = card.querySelector('.meta-date-range');

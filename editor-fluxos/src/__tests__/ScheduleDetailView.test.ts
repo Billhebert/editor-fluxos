@@ -3,10 +3,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Schedule } from '../domain/Schedule';
 import { ScheduleDetailView } from '../ui/schedules/ScheduleDetailView';
 
-function makeSchedule(instances: { id: number; status?: string }[] = [{ id: 1 }, { id: 2 }]): Schedule {
+function makeSchedule(instances: { id: number; status?: string; approx?: boolean }[] = [{ id: 1 }, { id: 2 }]): Schedule {
     return new Schedule({
         flowName: 'fluxo A',
-        executionOrder: instances.map(i => ({ id: i.id, gatilhoTime: Date.parse('2030-01-01T09:00:00'), status: i.status || 'pending', resolvedActions: ['enter'] })),
+        executionOrder: instances.map(i => ({ id: i.id, gatilhoTime: Date.parse('2030-01-01T09:00:00'), status: i.status || 'pending', resolvedActions: ['enter'], approx: i.approx })),
     });
 }
 
@@ -39,6 +39,20 @@ describe('ScheduleDetailView', () => {
 
         expect(document.querySelector('#scheduleDetailModal .conflict-row')).toBeNull();
         expect(document.querySelector('#scheduleDetailModal .conflict-banner')).toBeNull();
+    });
+
+    it('destaca ordens marcadas como approx (nao couberam na janela)', () => {
+        const view = shown();
+        view.show(makeSchedule([{ id: 1 }, { id: 2, approx: true }]), { onBack: () => {} });
+
+        const rows = Array.from(document.querySelectorAll('#scheduleDetailModal .data-table tbody tr'));
+        expect(rows[0].classList.contains('conflict-row')).toBe(false);
+        expect(rows[1].classList.contains('conflict-row')).toBe(true);
+        expect(rows[1].textContent).toContain('nao coube');
+
+        const banner = document.querySelector('#scheduleDetailModal .conflict-banner');
+        expect(banner).not.toBeNull();
+        expect(banner!.textContent).toContain('nao couberam na janela');
     });
 
     it('botao voltar dispara onBack e fecha o modal', () => {

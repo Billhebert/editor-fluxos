@@ -9,6 +9,7 @@ function vm(partial: Partial<ScheduleCardVM> = {}): ScheduleCardVM {
         flowName: 'fluxo A',
         active: true,
         conflictCount: 0,
+        approxCount: 0,
         total: 3,
         completed: 1,
         next: 'Nenhum',
@@ -72,6 +73,19 @@ describe('ScheduleListView', () => {
 
         view.update([vm({ scheduleId: 's1', conflictCount: 0 })]);
         expect(document.querySelector('.conflict-badge')).toBeNull();
+    });
+
+    it('cria e remove o badge de ordens fora da janela (approx)', () => {
+        const view = new ScheduleListView();
+        view.show([vm({ scheduleId: 's1', approxCount: 0 })], callbacks);
+
+        expect(document.querySelector('.approx-badge')).toBeNull();
+
+        view.update([vm({ scheduleId: 's1', approxCount: 3 })]);
+        expect(document.querySelector('.approx-badge')!.textContent).toContain('3 fora da janela');
+
+        view.update([vm({ scheduleId: 's1', approxCount: 0 })]);
+        expect(document.querySelector('.approx-badge')).toBeNull();
     });
 
     it('update remove cards que sumiram', () => {

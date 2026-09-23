@@ -450,6 +450,32 @@ describe('FLUXO E2E', () => {
             await page.waitForSelector('#schedulesModal');
         });
 
+        it('marca linhas e badge quando a janela satura com geracao repetida dos valores default', async () => {
+            for (let k = 0; k < 6; k++) {
+                await page.click('#schedulesModal .btn-new');
+                await page.waitForSelector('#newScheduleModal');
+                await page.selectOption('#schFlow', 'rec_flow');
+                await page.fill('#schCount', '5');
+                await page.fill('#schInterval', '60');
+                await page.fill('#schDate', '2030-07-01');
+                await page.fill('#schTimeStart', '07:00');
+                await page.fill('#schTimeEnd', '07:10');
+                await page.click('#newScheduleModal .btn-preview');
+                await page.waitForSelector('#execOrderPreviewModal');
+                await page.click('#execOrderPreviewModal .btn-confirm');
+                await page.waitForSelector('.schedule-card');
+            }
+
+            const lastCard = page.locator('.schedule-card').last();
+            expect(await lastCard.locator('.approx-badge').count()).toBeGreaterThan(0);
+
+            await lastCard.locator('.btn-view').click();
+            await page.waitForSelector('#scheduleDetailModal');
+            expect(await page.locator('#scheduleDetailModal .conflict-row').count()).toBeGreaterThan(0);
+            await page.click('#scheduleDetailModal .btn-back');
+            await page.waitForSelector('#schedulesModal');
+        });
+
         it('fecha tela de agendamentos', async () => {
             await page.click('#schedulesModal .btn-close');
             await page.waitForSelector('#schedulesModal', { state: 'detached' });

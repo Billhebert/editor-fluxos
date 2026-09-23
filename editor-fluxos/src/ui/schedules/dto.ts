@@ -3,6 +3,7 @@ export interface ScheduleCardVM {
     flowName: string;
     active: boolean;
     conflictCount: number;
+    approxCount: number;
     total: number;
     completed: number;
     next: string;
