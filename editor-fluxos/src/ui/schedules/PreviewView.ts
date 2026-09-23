@@ -1,7 +1,7 @@
 import { ExecutionInstance } from '../../domain/ExecutionInstance';
 import { escapeHtml } from '../escapeHtml';
 import { getActionLabel } from '../ActionLabeler';
-import { formatLocalDateTimeEdit, parseLocalDateTimeEdit } from './datetime';
+import { formatLocalDateTimeEdit, parseLocalDateTimeEdit, maskDatetimeEdit } from './datetime';
 
 export interface PreviewCallbacks {
     onConfirm(): Promise<void>;
@@ -106,8 +106,20 @@ export class PreviewView {
         tableContainer.innerHTML = html;
 
         tableContainer.querySelectorAll('.time-input').forEach(input => {
-            input.addEventListener('change', (e) => {
-                const el = e.target as HTMLInputElement;
+            const el = input as HTMLInputElement;
+            el.addEventListener('focus', () => el.select());
+            el.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                el.focus();
+                el.select();
+            });
+            el.addEventListener('input', () => {
+                el.value = maskDatetimeEdit(el.value);
+                const idx = parseInt(el.dataset.idx!);
+                const timeMs = parseLocalDateTimeEdit(el.value);
+                if (!Number.isNaN(timeMs)) callbacks.onTimeChanged(idx, timeMs);
+            });
+            el.addEventListener('change', () => {
                 const idx = parseInt(el.dataset.idx!);
                 const timeMs = parseLocalDateTimeEdit(el.value);
                 if (Number.isNaN(timeMs)) {

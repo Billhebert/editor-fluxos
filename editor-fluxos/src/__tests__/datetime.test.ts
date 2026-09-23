@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatLocalDateTime, formatLocalDateTimeInput } from '../ui/schedules/datetime';
+import { formatLocalDateTime, formatLocalDateTimeInput, maskDatetimeEdit, parseLocalDateTimeEdit } from '../ui/schedules/datetime';
 
 describe('formatLocalDateTime', () => {
     it('formats timestamp to DD/MM HH:MM', () => {
@@ -28,5 +28,32 @@ describe('formatLocalDateTimeInput', () => {
     it('pads single digits in input format', () => {
         const ts = new Date(2024, 0, 5, 9, 5, 0).getTime();
         expect(formatLocalDateTimeInput(ts)).toBe('2024-01-05T09:05');
+    });
+});
+
+describe('maskDatetimeEdit', () => {
+    it('formata digitos puros em DD/MM/AAAA HH:MM', () => {
+        expect(maskDatetimeEdit('040820300930')).toBe('04/08/2030 09:30');
+    });
+
+    it('remove separadores e letras digitados, mantendo so os numeros', () => {
+        expect(maskDatetimeEdit('04/08/2030 09:30')).toBe('04/08/2030 09:30');
+        expect(maskDatetimeEdit('04a08b2030c09d30')).toBe('04/08/2030 09:30');
+    });
+
+    it('trunca em 14 digitos e monta parcialmente enquanto digita', () => {
+        expect(maskDatetimeEdit('04/08/2030 09:30:59')).toBe('04/08/2030 09:30');
+        expect(maskDatetimeEdit('2030')).toBe('20/30');
+        expect(maskDatetimeEdit('')).toBe('');
+    });
+});
+
+describe('parseLocalDateTimeEdit', () => {
+    it('parseia formato dd/mm/aaaa hh:mm', () => {
+        expect(parseLocalDateTimeEdit('04/08/2030 09:30')).toBe(new Date(2030, 7, 4, 9, 30).getTime());
+    });
+
+    it('rejeita data impossivel', () => {
+        expect(Number.isNaN(parseLocalDateTimeEdit('31/02/2030 10:30'))).toBe(true);
     });
 });

@@ -31,3 +31,21 @@ export function parseLocalDateTimeEdit(value: string): number {
     ) return NaN;
     return dt.getTime();
 }
+
+export function maskDatetimeEdit(value: string): string {
+    const digits = value.replace(/\D/g, '').slice(0, 14);
+    const groups = [2, 2, 4, 2, 2];
+    const separators = ['/', '/', ' ', ':'];
+    let out = '';
+    let pos = 0;
+    for (let g = 0; g < groups.length; g++) {
+        const part = digits.slice(pos, pos + groups[g]);
+        if (!part) break;
+        out += part;
+        pos += groups[g];
+        if (g < groups.length - 1 && digits.length > pos) {
+            out += separators[g];
+        }
+    }
+    return out;
+}

@@ -420,6 +420,12 @@ describe('FLUXO E2E', () => {
             await input.press('Tab');
             expect(await input.inputValue()).toBe('03/01/2030 11:00');
 
+            const second = page.locator('#execOrderTable tbody tr').nth(1).locator('.time-input');
+            await second.click();
+            await page.keyboard.type('050620300830', { delay: 20 });
+            await second.press('Tab');
+            expect(await second.inputValue()).toBe('05/06/2030 08:30');
+
             await page.click('#execOrderPreviewModal .btn-cancel');
             await page.waitForSelector('#execOrderPreviewModal', { state: 'detached' });
         });

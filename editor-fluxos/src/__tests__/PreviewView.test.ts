@@ -58,6 +58,29 @@ describe('PreviewView', () => {
         expect(document.querySelector('.time-input')).toBe(handle);
     });
 
+    it('mascara a digitacao ao vivo e envia onTimeChanged quando completo', () => {
+        const view = new PreviewView();
+        view.show('fluxo', order(1000, 2000), callbacks);
+
+        const input = document.querySelector('.time-input') as HTMLInputElement;
+        input.value = '040820300930';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(input.value).toBe('04/08/2030 09:30');
+        expect(callbacks.onTimeChanged).toHaveBeenCalledWith(0, new Date(2030, 7, 4, 9, 30).getTime());
+    });
+
+    it('seleciona todo o conteudo ao focar no input', () => {
+        const view = new PreviewView();
+        view.show('fluxo', order(1000, 2000), callbacks);
+
+        const input = document.querySelector('.time-input') as HTMLInputElement;
+        input.focus();
+
+        expect(input.selectionStart).toBe(0);
+        expect(input.selectionEnd).toBe(input.value.length);
+    });
+
     it('ignora horario invalido e restaura o valor anterior', () => {
         const view = new PreviewView();
         view.show('fluxo', order(1000, 2000), callbacks);
