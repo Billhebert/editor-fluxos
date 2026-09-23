@@ -51,11 +51,27 @@ describe('PreviewView', () => {
 
         const input = document.querySelector('.time-input') as HTMLInputElement;
         const handle = input;
-        input.value = '2030-01-02T10:30';
+        input.value = '02/01/2030 10:30';
         input.dispatchEvent(new Event('change', { bubbles: true }));
 
-        expect(callbacks.onTimeChanged).toHaveBeenCalledWith(0, new Date('2030-01-02T10:30').getTime());
+        expect(callbacks.onTimeChanged).toHaveBeenCalledWith(0, new Date(2030, 0, 2, 10, 30).getTime());
         expect(document.querySelector('.time-input')).toBe(handle);
+    });
+
+    it('ignora horario invalido e restaura o valor anterior', () => {
+        const view = new PreviewView();
+        view.show('fluxo', order(1000, 2000), callbacks);
+
+        const input = document.querySelector('.time-input') as HTMLInputElement;
+        input.value = 'lixo';
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+
+        expect(callbacks.onTimeChanged).not.toHaveBeenCalled();
+        expect(input.value).toContain('19');
+
+        input.value = '31/02/2030 10:30';
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(callbacks.onTimeChanged).not.toHaveBeenCalled();
     });
 
     it('enfileira onRemove e removeRow preserva os demais indices', () => {
@@ -71,8 +87,8 @@ describe('PreviewView', () => {
         expect(rows[1].dataset.idx).toBe('1');
 
         const reindexedInput = rows[1].querySelector('.time-input') as HTMLInputElement;
-        reindexedInput.value = '2030-01-02T10:30';
+        reindexedInput.value = '02/01/2030 10:30';
         reindexedInput.dispatchEvent(new Event('change', { bubbles: true }));
-        expect(callbacks.onTimeChanged).toHaveBeenCalledWith(1, new Date('2030-01-02T10:30').getTime());
+        expect(callbacks.onTimeChanged).toHaveBeenCalledWith(1, new Date(2030, 0, 2, 10, 30).getTime());
     });
 });

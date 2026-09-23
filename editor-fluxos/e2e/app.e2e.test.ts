@@ -407,15 +407,47 @@ describe('FLUXO E2E', () => {
 
             const input = page.locator('#execOrderTable tbody tr').first().locator('.time-input');
             const before = await input.evaluateHandle((el) => el);
-            await input.fill('2030-01-02T10:30');
+            await input.fill('02/01/2030 10:30');
             const after = await input.evaluateHandle((el) => el);
             const sameElement = await page.evaluate(({ b, a }) => b === a, { b: before, a: after });
 
             expect(sameElement).toBe(true);
-            expect(await input.inputValue()).toContain('2030-01-02T10:30');
+            expect(await input.inputValue()).toContain('02/01/2030 10:30');
+
+            await input.click();
+            await page.keyboard.press('Control+a');
+            await page.keyboard.type('03/01/2030 11:00', { delay: 20 });
+            await input.press('Tab');
+            expect(await input.inputValue()).toBe('03/01/2030 11:00');
 
             await page.click('#execOrderPreviewModal .btn-cancel');
             await page.waitForSelector('#execOrderPreviewModal', { state: 'detached' });
+        });
+
+        it('mostra badge e destaque de conflito quando 2 agendamentos ocupam o mesmo horario', async () => {
+            for (const time of ['01/06/2030 07:00', '01/06/2030 07:00']) {
+                await page.click('#schedulesModal .btn-new');
+                await page.waitForSelector('#newScheduleModal');
+                await page.selectOption('#schFlow', 'rec_flow');
+                await page.fill('#schCount', '1');
+                await page.fill('#schInterval', '60');
+                await page.fill('#schDate', '2030-06-01');
+                await page.click('#newScheduleModal .btn-preview');
+                await page.waitForSelector('#execOrderPreviewModal');
+                await page.locator('#execOrderTable tbody tr').first().locator('.time-input').fill(time);
+                await page.click('#execOrderPreviewModal .btn-confirm');
+                await page.waitForSelector('.schedule-card');
+            }
+
+            const badges = page.locator('.schedule-card .conflict-badge');
+            expect(await badges.count()).toBeGreaterThan(0);
+            expect(await badges.first().textContent()).toContain('conflito');
+
+            await page.locator('.schedule-card:has(.conflict-badge)').first().locator('.btn-view').click();
+            await page.waitForSelector('#scheduleDetailModal');
+            expect(await page.locator('#scheduleDetailModal .conflict-row').count()).toBeGreaterThanOrEqual(1);
+            await page.click('#scheduleDetailModal .btn-back');
+            await page.waitForSelector('#schedulesModal');
         });
 
         it('fecha tela de agendamentos', async () => {

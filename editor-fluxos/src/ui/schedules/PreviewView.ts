@@ -1,7 +1,7 @@
 import { ExecutionInstance } from '../../domain/ExecutionInstance';
 import { escapeHtml } from '../escapeHtml';
 import { getActionLabel } from '../ActionLabeler';
-import { formatLocalDateTimeInput } from './datetime';
+import { formatLocalDateTimeEdit, parseLocalDateTimeEdit } from './datetime';
 
 export interface PreviewCallbacks {
     onConfirm(): Promise<void>;
@@ -85,14 +85,14 @@ export class PreviewView {
         if (!overlay) return;
         const tableContainer = overlay.querySelector('#execOrderTable') as HTMLElement;
 
-        let html = '<table class="data-table"><thead><tr><th>#</th><th>Horario</th><th>Acoes</th><th></th></tr></thead><tbody>';
+        let html = '<table class="data-table"><thead><tr><th>#</th><th>Horario (dd/mm/aaaa hh:mm)</th><th>Acoes</th><th></th></tr></thead><tbody>';
         this._order.forEach((inst, i) => {
-            const localDT = formatLocalDateTimeInput(inst.gatilhoTime);
+            const localDT = formatLocalDateTimeEdit(inst.gatilhoTime);
             const actionsStr = inst.resolvedActions.map((a: any) => getActionLabel(a)).join(', ');
 
             html += `<tr data-idx="${i}">
                 <td>${inst.id}</td>
-                <td><input type="datetime-local" value="${localDT}" data-idx="${i}" class="time-input" /></td>
+                <td><input type="text" value="${localDT}" placeholder="dd/mm/aaaa hh:mm" data-idx="${i}" class="time-input" /></td>
                 <td style="font-family:Consolas,monospace; font-size:12px; color:#a29bfe;">${actionsStr}</td>
                 <td><button class="btn btn-danger btn-sm btn-remove-item" data-idx="${i}">✕</button></td>
             </tr>`;
@@ -102,8 +102,14 @@ export class PreviewView {
 
         tableContainer.querySelectorAll('.time-input').forEach(input => {
             input.addEventListener('change', (e) => {
-                const idx = parseInt((e.target as HTMLInputElement).dataset.idx!);
-                const timeMs = new Date((e.target as HTMLInputElement).value).getTime();
+                const el = e.target as HTMLInputElement;
+                const idx = parseInt(el.dataset.idx!);
+                const timeMs = parseLocalDateTimeEdit(el.value);
+                if (Number.isNaN(timeMs)) {
+                    const inst = this._order[idx];
+                    if (inst) el.value = formatLocalDateTimeEdit(inst.gatilhoTime);
+                    return;
+                }
                 callbacks.onTimeChanged(idx, timeMs);
             });
         });
