@@ -385,6 +385,7 @@ describe('FLUXO E2E', () => {
             await page.click('.schedule-card .btn-view');
             await page.waitForSelector('#scheduleDetailModal');
             expect(await page.textContent('#scheduleDetailModal')).toContain('pendentes');
+            expect(await page.locator('#scheduleDetailModal .conflict-row').count()).toBe(0);
             await page.click('#scheduleDetailModal .btn-back');
             await page.waitForSelector('#schedulesModal');
         });

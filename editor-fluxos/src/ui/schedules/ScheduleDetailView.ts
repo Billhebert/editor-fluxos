@@ -10,7 +10,7 @@ export interface ScheduleDetailCallbacks {
 }
 
 export class ScheduleDetailView {
-    show(sch: Schedule, callbacks: ScheduleDetailCallbacks): void {
+    show(sch: Schedule, callbacks: ScheduleDetailCallbacks, conflictIds: number[] = []): void {
         const overlay = document.createElement('div');
         overlay.className = 'modal-fullscreen';
         overlay.id = 'scheduleDetailModal';
@@ -46,10 +46,10 @@ export class ScheduleDetailView {
             callbacks.onBack();
         });
 
-        this._renderTable(overlay.querySelector('#scheduleDetailTable') as HTMLElement, sch);
+        this._renderTable(overlay.querySelector('#scheduleDetailTable') as HTMLElement, sch, conflictIds);
     }
 
-    private _renderTable(container: HTMLElement, sch: Schedule): void {
+    private _renderTable(container: HTMLElement, sch: Schedule, conflictIds: number[]): void {
         const order = sch.executionOrder;
         if (order.length === 0) {
             container.innerHTML = '<div class="empty-state">Nenhuma execucao gerada</div>';
@@ -57,6 +57,7 @@ export class ScheduleDetailView {
         }
 
         const stats = this._getStats(order);
+        const conflictSet = new Set(conflictIds);
 
         let html = `
             <div style="display:flex; gap:16px; margin-bottom:12px; font-size:13px;">
@@ -64,7 +65,13 @@ export class ScheduleDetailView {
                 <span style="color:${STATUS_COLORS.failed};">❌ ${stats.failed} falharam</span>
                 <span style="color:${STATUS_COLORS.pending};">⏳ ${stats.pending} pendentes</span>
                 <span style="color:${STATUS_COLORS.running};">▶ ${stats.running} rodando</span>
-            </div>
+            </div>`;
+
+        if (conflictSet.size > 0) {
+            html += `<div class="conflict-banner">⚠ ${conflictSet.size} ordem(ns) em conflito com horarios de outros agendamentos ativos</div>`;
+        }
+
+        html += `
             <table class="data-table"><thead><tr>
                 <th>#</th><th>Status</th><th>Horario</th><th>Acoes Resolvidas</th>
             </tr></thead><tbody>`;
@@ -74,11 +81,12 @@ export class ScheduleDetailView {
             const actionsStr = inst.resolvedActions.map(a => getActionLabel(a)).join(', ');
             const color = STATUS_COLORS[inst.status] || '#888';
             const label = STATUS_LABELS[inst.status] || inst.status;
+            const isConflict = conflictSet.has(inst.id);
 
-            html += `<tr>
+            html += `<tr${isConflict ? ' class="conflict-row"' : ''}>
                 <td>${inst.id}</td>
                 <td style="color:${color}; font-weight:bold;">${label}</td>
-                <td style="color:#ccc;">${localDT}</td>
+                <td style="color:#ccc;">${localDT}${isConflict ? ' <span class="conflict-badge">⚠ conflito</span>' : ''}</td>
                 <td style="font-family:Consolas,monospace; font-size:12px; color:#a29bfe;">${escapeHtml(actionsStr)}</td>
             </tr>`;
         });

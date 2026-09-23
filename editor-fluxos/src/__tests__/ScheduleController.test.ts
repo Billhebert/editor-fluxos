@@ -201,7 +201,7 @@ describe('ScheduleController', () => {
         callbacks.onView(schedule.id);
 
         const detailView = (ctrl as any)._detailView;
-        expect(detailView.show).toHaveBeenCalledWith(schedule, expect.any(Object));
+        expect(detailView.show).toHaveBeenCalledWith(schedule, expect.any(Object), []);
     });
 
     it('onClose in list view is a no-op', async () => {

@@ -108,9 +108,10 @@ export class ScheduleController {
     private _openDetail(scheduleId: string): void {
         const sch = this._schedules.find(s => s.id === scheduleId);
         if (!sch) return;
+        const conflictIds = sch.active ? this._conflictService.conflictingInstanceIds(sch, this._schedules) : [];
         this._detailView.show(sch, {
             onBack: () => this._showList()
-        });
+        }, conflictIds);
     }
 
     private _openNewSchedule(): void {
