@@ -133,6 +133,33 @@ describe('Schedule', () => {
         expect(sch.findInstance(999)).toBeUndefined();
     });
 
+    it('pushOnConflict defaults to true', () => {
+        const sch = new Schedule({ flowName: 't' });
+        expect(sch.pushOnConflict).toBe(true);
+    });
+
+    it('pushOnConflict is configurable', () => {
+        const sch = new Schedule({ flowName: 't', pushOnConflict: false });
+        expect(sch.pushOnConflict).toBe(false);
+    });
+
+    it('pushOnConflict persists through toJSON / fromJSON', () => {
+        const json = new Schedule({ flowName: 't', pushOnConflict: false }).toJSON();
+        const restored = Schedule.fromJSON(json);
+        expect(restored.pushOnConflict).toBe(false);
+    });
+
+    it('toJSON supports undefined pushOnConflict (padrao true)', () => {
+        const json = new Schedule({ flowName: 't' }).toJSON();
+        const restored = Schedule.fromJSON(json);
+        expect(restored.pushOnConflict).toBe(true);
+    });
+
+    it('gera ids unicos mesmo para agendamentos criados no mesmo milissegundo', () => {
+        const ids = new Set(Array.from({ length: 200 }, () => new Schedule({ flowName: 't' }).id));
+        expect(ids.size).toBe(200);
+    });
+
     it('toJSON / fromJSON round-trip', () => {
         const sch = new Schedule({
             flowName: 'test',

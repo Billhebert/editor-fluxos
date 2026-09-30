@@ -65,6 +65,15 @@ describe('ScheduleConflictDetector', () => {
                 { start: 3000, end: 4000 },
             ]);
         });
+
+        it('preserva o scheduleId e acumula scheduleIds ao fundir', () => {
+            const a = makeSchedule('sch_a', 60, [instance(1, 1000, 'pending')]);
+            const b = makeSchedule('sch_b', 60, [instance(1, 1500, 'pending')]);
+            const blocks = ScheduleConflictDetector.collectReservedBlocks([a, b]);
+            const merged = ScheduleConflictDetector.mergeReservedBlocks(blocks);
+            expect(merged).toHaveLength(1);
+            expect(merged[0].scheduleIds).toEqual(['sch_a', 'sch_b']);
+        });
     });
 
     describe('conflicts / conflictCount', () => {
@@ -105,6 +114,40 @@ describe('ScheduleConflictDetector', () => {
             const a = makeSchedule('a', 60, [instance(1, 100000, 'pending')]);
             const b = makeSchedule('b', 60, [instance(1, 100100, 'pending')]);
             expect(ScheduleConflictDetector.conflictCount(a, [a, b])).toBe(1);
+        });
+    });
+
+    describe('gapMs (folga global entre schedules)', () => {
+        const gap = 5 * 60 * 1000;
+
+        it('conflita quando a distancia entre ordens e menor que o gap', () => {
+            const a = makeSchedule('a', 60, [instance(1, 100000, 'pending')]);
+            const b = makeSchedule('b', 60, [instance(1, 100000 + 4 * 60 * 1000, 'pending')]);
+            expect(ScheduleConflictDetector.conflictCount(a, [b], gap)).toBe(1);
+        });
+
+        it('nao conflita quando a distancia entre fim e inicio e exatamente o gap', () => {
+            const a = makeSchedule('a', 60, [instance(1, 100000, 'pending')]);
+            const b = makeSchedule('b', 60, [instance(1, 100000 + 60 * 1000 + gap, 'pending')]);
+            expect(ScheduleConflictDetector.conflictCount(a, [b], gap)).toBe(0);
+        });
+
+        it('sem gap mantem o comportamento de sobreposicao estrita', () => {
+            const a = makeSchedule('a', 60, [instance(1, 100000, 'pending')]);
+            const b = makeSchedule('b', 60, [instance(1, 100000 + 61 * 1000, 'pending')]);
+            expect(ScheduleConflictDetector.conflictCount(a, [b])).toBe(0);
+        });
+
+        it('ignora agendamentos inativos mesmo com gap', () => {
+            const a = makeSchedule('a', 60, [instance(1, 100000, 'pending')]);
+            const b = makeSchedule('b', 60, [instance(1, 100000 + 1000, 'pending')], false);
+            expect(ScheduleConflictDetector.conflictCount(a, [b], gap)).toBe(0);
+        });
+
+        it('expande reserved blocks pelo gap', () => {
+            const s = makeSchedule('s1', 60, [instance(1, 1000, 'pending')]);
+            const blocks = ScheduleConflictDetector.collectReservedBlocks([s], gap);
+            expect(blocks[0].end).toBe(1000 + 60 * 1000 + gap);
         });
     });
 });

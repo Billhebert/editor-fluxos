@@ -678,4 +678,52 @@ describe('ScheduleManager', () => {
             }
         });
     });
+
+    describe('generateExecutionOrder - pushOnConflict', () => {
+        it('com pushOnConflict=false nao desloca sobre agendamentos existentes', async () => {
+            const random = vi.spyOn(Math, 'random');
+            try {
+                random.mockReturnValueOnce(0.5);
+                await manager.createSchedule(
+                    { flowName: 'existente', repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '09:00', intervaloMinimo: 3600 },
+                    ['enter'], pool
+                );
+
+                random.mockReturnValueOnce(0.98);
+                const result = await manager.createSchedule(
+                    { flowName: 'novo', pushOnConflict: false, repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '09:00', intervaloMinimo: 60 },
+                    ['enter'], pool
+                );
+
+                const d = new Date(result.executionOrder[0].gatilhoTime);
+                const sec = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+                expect(sec).toBeLessThan(9 * 3600);
+                expect(manager.lastUnsettledCount).toBe(0);
+            } finally {
+                random.mockRestore();
+            }
+        });
+
+        it('com pushOnConflict=true (default) desloca e sobra conflito', async () => {
+            const random = vi.spyOn(Math, 'random');
+            try {
+                random.mockReturnValueOnce(0.5);
+                await manager.createSchedule(
+                    { flowName: 'existente', repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '09:00', intervaloMinimo: 3600 },
+                    ['enter'], pool
+                );
+
+                random.mockReturnValueOnce(0.98);
+                const result = await manager.createSchedule(
+                    { flowName: 'novo', repeticoes: 1, date: '2026-09-07', timeStart: '08:00', timeEnd: '09:00', intervaloMinimo: 60 },
+                    ['enter'], pool
+                );
+
+                expect(manager.lastUnsettledCount).toBe(1);
+                expect(result.executionOrder[0].approx).toBe(true);
+            } finally {
+                random.mockRestore();
+            }
+        });
+    });
 });

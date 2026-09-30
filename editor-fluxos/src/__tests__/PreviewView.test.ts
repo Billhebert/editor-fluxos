@@ -127,4 +127,54 @@ describe('PreviewView', () => {
         reindexedInput.dispatchEvent(new Event('change', { bubbles: true }));
         expect(callbacks.onTimeChanged).toHaveBeenCalledWith(1, new Date(2030, 0, 2, 10, 30).getTime());
     });
+
+    it('desabilita Confirmar e mostra Resolver Conflito quando ha conflitos', () => {
+        const view = new PreviewView();
+        view.show('fluxo', order(1000, 2000), callbacks);
+        const confirmBtn = document.querySelector('.btn-confirm') as HTMLButtonElement;
+        const resolveBtn = document.querySelector('.btn-resolve') as HTMLElement;
+
+        view.setConflicts([1]);
+        expect(confirmBtn.disabled).toBe(true);
+        expect(resolveBtn.style.display).not.toBe('none');
+
+        view.setConflicts([]);
+        expect(confirmBtn.disabled).toBe(false);
+        expect(resolveBtn.style.display).toBe('none');
+    });
+
+    it('desabilita Confirmar tambem quando ha ordens approx', () => {
+        const view = new PreviewView();
+        const insts = order(1000, 2000);
+        insts[0].approx = true;
+        view.show('fluxo', insts, callbacks);
+        const confirmBtn = document.querySelector('.btn-confirm') as HTMLButtonElement;
+        view.setConflicts([]);
+        expect(confirmBtn.disabled).toBe(true);
+    });
+
+    it('emite onRegenerate ao clicar em Regenerar', () => {
+        callbacks.onRegenerate = vi.fn();
+        const view = new PreviewView();
+        view.show('fluxo', order(1000), callbacks);
+        (document.querySelector('.btn-regen') as HTMLElement).click();
+        expect(callbacks.onRegenerate).toHaveBeenCalled();
+    });
+
+    it('emite onResolve ao clicar em Resolver Conflito', () => {
+        callbacks.onResolve = vi.fn();
+        const view = new PreviewView();
+        view.show('fluxo', order(1000), callbacks);
+        (document.querySelector('.btn-resolve') as HTMLElement).click();
+        expect(callbacks.onResolve).toHaveBeenCalled();
+    });
+
+    it('setOrder reconstroi a tabela mantendo o overlay', () => {
+        const view = new PreviewView();
+        view.show('fluxo', order(1000, 2000), callbacks);
+        const modal = document.getElementById('execOrderPreviewModal');
+        view.setOrder(order(1000, 2000, 3000));
+        expect(document.getElementById('execOrderPreviewModal')).toBe(modal);
+        expect(document.querySelectorAll('#execOrderTable tbody tr')).toHaveLength(3);
+    });
 });

@@ -5,10 +5,12 @@ import { IScheduleConflictService } from '../adapters';
 import { Toast } from './Toast';
 import { ScheduleListView } from './schedules/ScheduleListView';
 import { ScheduleDetailView } from './schedules/ScheduleDetailView';
-import { NewScheduleView } from './schedules/NewScheduleView';
+import { NewScheduleView, NewSchedulePrefill, getLastScheduleForm } from './schedules/NewScheduleView';
 import { PreviewView } from './schedules/PreviewView';
+import { ScheduleConflictDialog, ConflictEntry } from './schedules/ScheduleConflictDialog';
 import { ScheduleCardVM } from './schedules/dto';
 import { WEEK_DAYS } from '../domain/constants';
+import { loadSystemConfig, SystemConfig, systemConfigGapMs } from './config/SystemConfig';
 
 export interface ScheduleContext {
     getFluxos(): Record<string, RawAction[]>;
@@ -26,6 +28,7 @@ export class ScheduleController {
     private _detailView: ScheduleDetailView;
     private _newView: NewScheduleView;
     private _previewView: PreviewView;
+    private _config: SystemConfig = loadSystemConfig();
 
     constructor(ctx: ScheduleContext, conflictService: IScheduleConflictService) {
         this._ctx = ctx;
@@ -37,6 +40,12 @@ export class ScheduleController {
     }
 
     get schedules(): Schedule[] { return this._schedules; }
+    get gapMs(): number { return systemConfigGapMs(this._config); }
+
+    refreshConfig(): void {
+        this._config = loadSystemConfig();
+        this._listView.update(this._buildViewModels());
+    }
 
     async openSchedules(): Promise<void> {
         this._schedules = await this._ctx.loadSchedules();
@@ -63,7 +72,7 @@ export class ScheduleController {
         sch.active = active;
         await this._persist();
         if (active) {
-            const count = this._conflictService.conflictCountInSet(sch, this._schedules);
+            const count = this._conflictService.conflictCountInSet(sch, this._schedules, this.gapMs);
             if (count > 0) {
                 Toast.warning(`Atencao: ${count} execucao(es) deste agendamento conflitam com horarios de outros agendamentos ativos`);
             }
@@ -115,12 +124,13 @@ export class ScheduleController {
         }, conflictIds);
     }
 
-    private _openNewSchedule(): void {
+    private _openNewSchedule(prefill?: NewSchedulePrefill): void {
         this._newView.show(this._ctx.getFluxos(), this._ctx.getVarConfig(), {
             onClose: () => this._showList(),
-            generateOrder: (template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days) => {
+            generateOrder: (template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days, pushOnConflict) => {
                 const order = this._ctx.scheduleManager.generateExecutionOrder(
-                    template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig(), dataInicio, dataFim, days, this._schedules
+                    template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig(), dataInicio, dataFim, days, this._schedules,
+                    { pushOnConflict, conflictGapMs: this.gapMs }
                 );
                 const [sh, sm] = timeStart.split(':').map(Number);
                 const [eh, em] = timeEnd.split(':').map(Number);
@@ -134,29 +144,72 @@ export class ScheduleController {
                 return order;
             },
             onGenerate: (result) => this._openPreview(result)
-        });
+        }, prefill);
     }
 
     private _openPreview(r: {
         flowName: string; order: ExecutionInstance[]; mode: ScheduleMode;
         date: string; timeStart: string; timeEnd: string; days: number[];
         obrigValor: string; count: number; interval: number;
-        dataInicio: string | null; dataFim: string | null;
+        dataInicio: string | null; dataFim: string | null; pushOnConflict: boolean;
     }): void {
+        const project = () => ({
+            id: 'preview',
+            active: true,
+            intervaloMinimo: r.interval,
+            executionOrder: r.order,
+        } as unknown as Schedule);
+
         const refreshConflicts = () => {
-            const projected = {
-                id: 'preview',
-                active: true,
-                intervaloMinimo: r.interval,
-                executionOrder: r.order,
-            } as unknown as Schedule;
             this._previewView.setConflicts(
-                this._conflictService.conflictingInstanceIds(projected, this._schedules)
+                this._conflictService.conflictingInstanceIds(project(), this._schedules, this.gapMs)
             );
         };
 
+        const regenerate = (pushOnConflict: boolean): void => {
+            r.order = this._ctx.scheduleManager.generateExecutionOrder(
+                this._ctx.getFluxos()[r.flowName], r.obrigValor, r.count, r.date,
+                r.timeStart, r.timeEnd, r.interval, this._ctx.getVarConfig(),
+                r.dataInicio, r.dataFim, r.days, this._schedules,
+                { pushOnConflict, conflictGapMs: this.gapMs }
+            );
+            this._previewView.setOrder(r.order);
+            refreshConflicts();
+        };
+
+        const openConflictDialog = () => {
+            const bySchedule = new Map<string, number>();
+            const conflicts = this._conflictService.conflictsInSet(project(), this._schedules, this.gapMs);
+            for (const blocks of conflicts.values()) {
+                for (const b of blocks) {
+                    const ids = b.scheduleIds || (b.scheduleId ? [b.scheduleId] : []);
+                    for (const sid of ids) {
+                        if (!sid || sid === 'preview') continue;
+                        bySchedule.set(sid, (bySchedule.get(sid) || 0) + 1);
+                    }
+                }
+            }
+            const entries: ConflictEntry[] = Array.from(bySchedule.entries()).map(([scheduleId, count]) => {
+                const sch = this._schedules.find(s => s.id === scheduleId);
+                return { scheduleId, flowName: sch ? sch.flowName : scheduleId, count };
+            });
+            if (entries.length === 0) {
+                Toast.info('Nenhum agendamento em conflito no momento.');
+                return;
+            }
+            ScheduleConflictDialog.show(entries, {
+                onReschedule: () => this._tryReschedule(r, project, refreshConflicts, regenerate),
+                onDelete: (ids) => this._deleteConflicting(ids, r, regenerate),
+                onEdit: () => {
+                    this._previewView.close();
+                    this._openNewSchedule(getLastScheduleForm() || undefined);
+                },
+                onClose: () => {},
+            });
+        };
+
         this._previewView.show(r.flowName, r.order, {
-            onCancel: () => this._showList(),
+            onCancel: () => { this._previewView.close(); this._showList(); },
             onTimeChanged: (idx, timeMs) => {
                 r.order[idx].gatilhoTime = timeMs;
                 refreshConflicts();
@@ -166,7 +219,15 @@ export class ScheduleController {
                 this._previewView.removeRow(idx);
                 refreshConflicts();
             },
+            onRegenerate: () => regenerate(r.pushOnConflict),
+            onResolve: () => openConflictDialog(),
             onConfirm: async () => {
+                const still = this._conflictService.conflictsInSet(project(), this._schedules, this.gapMs).size
+                    + r.order.filter(i => i.approx === true).length;
+                if (still > 0) {
+                    Toast.error('Ainda ha conflitos ou ordens fora da janela. Resolva antes de confirmar.');
+                    return;
+                }
                 const schedule = new Schedule({
                     flowName: r.flowName,
                     obrigatorioValor: r.obrigValor,
@@ -180,6 +241,7 @@ export class ScheduleController {
                     dataInicio: r.dataInicio,
                     dataFim: r.dataFim,
                     active: true,
+                    pushOnConflict: r.pushOnConflict,
                     executionOrder: r.order
                 });
 
@@ -191,5 +253,50 @@ export class ScheduleController {
         });
 
         refreshConflicts();
+    }
+
+    private _tryReschedule(
+        r: { order: ExecutionInstance[]; count: number; date: string; timeStart: string; timeEnd: string; interval: number; dataInicio: string | null; dataFim: string | null; days: number[]; flowName: string; obrigValor: string; pushOnConflict: boolean },
+        project: () => Schedule,
+        refreshConflicts: () => void,
+        regenerate: (push: boolean) => void
+    ): void {
+        const attempts = this._config.rescheduleAttempts;
+        for (let i = 0; i < attempts; i++) {
+            const candidate = this._ctx.scheduleManager.generateExecutionOrder(
+                this._ctx.getFluxos()[r.flowName], r.obrigValor, r.count, r.date,
+                r.timeStart, r.timeEnd, r.interval, this._ctx.getVarConfig(),
+                r.dataInicio, r.dataFim, r.days, this._schedules,
+                { pushOnConflict: true, conflictGapMs: this.gapMs }
+            );
+            const projected = { id: 'preview', active: true, intervaloMinimo: r.interval, executionOrder: candidate } as unknown as Schedule;
+            const conflicts = this._conflictService.conflictsInSet(projected, this._schedules, this.gapMs).size
+                + candidate.filter(i => i.approx === true).length;
+            if (conflicts === 0) {
+                r.order = candidate;
+                this._previewView.setOrder(r.order);
+                refreshConflicts();
+                Toast.success('Reagendado automaticamente sem conflitos.');
+                return;
+            }
+        }
+        Toast.error(`Nao foi possivel achar um horario livre em ${attempts} tentativas. Ajuste manualmente.`);
+        void project; void regenerate;
+    }
+
+    private async _deleteConflicting(
+        ids: string[],
+        r: { flowName: string; obrigValor: string; count: number; date: string; timeStart: string; timeEnd: string; interval: number; dataInicio: string | null; dataFim: string | null; days: number[]; pushOnConflict: boolean; order: ExecutionInstance[] },
+        regenerate: (push: boolean) => void
+    ): Promise<void> {
+        if (ids.length === 0) {
+            Toast.warning('Marque ao menos um agendamento para excluir.');
+            return;
+        }
+        this._schedules = this._schedules.filter(s => !ids.includes(s.id));
+        await this._persist();
+        regenerate(r.pushOnConflict);
+        this._listView.update(this._buildViewModels());
+        Toast.info(`${ids.length} agendamento(s) excluido(s); ordens regeneradas.`);
     }
 }

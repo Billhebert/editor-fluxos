@@ -8,17 +8,21 @@ export interface PreviewCallbacks {
     onCancel(): void;
     onTimeChanged(index: number, timeMs: number): void;
     onRemove(index: number): void;
+    onRegenerate?(): void;
+    onResolve?(): void;
 }
 
 export class PreviewView {
     private _overlay: HTMLElement | null = null;
     private _order: ExecutionInstance[] = [];
     private _conflictIds: Set<number> = new Set();
+    private _callbacks: PreviewCallbacks | null = null;
 
     show(flowName: string, order: ExecutionInstance[], callbacks: PreviewCallbacks): void {
         this._destroy();
         this._order = order;
         this._conflictIds = new Set();
+        this._callbacks = callbacks;
 
         const overlay = document.createElement('div');
         overlay.className = 'modal-fullscreen';
@@ -27,6 +31,8 @@ export class PreviewView {
             <div class="modal-fullscreen-header">
                 <h2>📋 Ordem - ${escapeHtml(flowName)}</h2>
                 <button class="btn btn-success btn-sm btn-confirm">✅ Confirmar</button>
+                <button class="btn btn-warning btn-sm btn-resolve" style="display:none;">⚠ Resolver Conflito</button>
+                <button class="btn btn-outline btn-sm btn-regen">🔁 Regenerar</button>
                 <button class="btn btn-outline btn-sm btn-cancel">✕ Cancelar</button>
             </div>
             <div id="execOrderPreviewBanner"></div>
@@ -40,6 +46,8 @@ export class PreviewView {
             await callbacks.onConfirm();
             this._destroy();
         });
+        overlay.querySelector('.btn-regen')!.addEventListener('click', () => callbacks.onRegenerate?.());
+        overlay.querySelector('.btn-resolve')!.addEventListener('click', () => callbacks.onResolve?.());
 
         this._renderTable(callbacks);
     }
@@ -47,6 +55,7 @@ export class PreviewView {
     setConflicts(instanceIds: Iterable<number>): void {
         this._conflictIds = new Set(instanceIds);
         const approxCount = this._order.filter(i => i.approx === true).length;
+        const blocked = this._conflictIds.size > 0 || approxCount > 0;
         const banner = this._overlay?.querySelector('#execOrderPreviewBanner') as HTMLElement;
         if (banner) {
             const parts: string[] = [];
@@ -56,7 +65,16 @@ export class PreviewView {
             if (approxCount > 0) {
                 parts.push(`<div class="conflict-banner">⚠ ${approxCount} ordem(ns) nao couberam na janela; horarios aproximados</div>`);
             }
+            if (blocked) {
+                parts.push(`<div class="conflict-banner">🔒 Resolva os conflitos antes de confirmar (use Resolver Conflito, Regenerar ou edite os horarios).</div>`);
+            }
             banner.innerHTML = parts.join('');
+        }
+        if (this._overlay) {
+            const confirmBtn = this._overlay.querySelector<HTMLButtonElement>('.btn-confirm');
+            const resolveBtn = this._overlay.querySelector<HTMLElement>('.btn-resolve');
+            if (confirmBtn) confirmBtn.disabled = blocked;
+            if (resolveBtn) resolveBtn.style.display = blocked ? '' : 'none';
         }
         if (!this._overlay) return;
         this._overlay.querySelectorAll<HTMLElement>('#execOrderTable tbody tr').forEach(row => {
@@ -138,10 +156,23 @@ export class PreviewView {
         });
     }
 
+    // Substitui as execucoes (usado ao regenerar) mantendo o overlay aberto.
+    setOrder(order: ExecutionInstance[]): void {
+        this._order = order;
+        if (this._overlay && this._callbacks) {
+            this._renderTable(this._callbacks);
+        }
+    }
+
+    close(): void {
+        this._destroy();
+    }
+
     private _destroy(): void {
         this._overlay?.remove();
         this._overlay = null;
         this._order = [];
         this._conflictIds = new Set();
+        this._callbacks = null;
     }
 }

@@ -3,6 +3,7 @@ import { FlowExecutor, ScheduleManager, FlowManager, FlowSanitizer, ScheduleConf
 import { LocalStorageFlowRepo, ElectronIpcExecutor, UndoManager, IpcScheduleRepo, eventBus, NodeIpcFileDialog } from './infrastructure';
 import { ipc } from './infrastructure/IpcService';
 import { FlowRenderer, Toast, RecordingController, ScheduleController, VariableConfigController } from './ui';
+import { ConfigModal } from './ui/config/ConfigModal';
 import { UpdateBadgeController } from './ui/modals/UpdateBadgeController';
 import { IpcListenerSetup } from './infrastructure/IpcListenerSetup';
 import { FlowController } from './ui/FlowController';
@@ -199,6 +200,7 @@ export class App {
                 'save-file': () => this._fileCtrl.saveFile(),
                 'save-file-as': () => this._fileCtrl.saveFile(true),
                 'open-var-config': () => this._varConfigCtrl.open(),
+                'open-config': () => ConfigModal.open(() => this._scheduleCtrl.refreshConfig()),
                 'open-schedules': () => this._scheduleCtrl.openSchedules(),
                 'close-recording': () => this._recording.close(),
                 'toggle-key-recording': () => this._recording.toggleKeyRecording(),

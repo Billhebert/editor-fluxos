@@ -430,61 +430,105 @@ describe('FLUXO E2E', () => {
             await page.waitForSelector('#execOrderPreviewModal', { state: 'detached' });
         });
 
-        it('mostra badge e destaque de conflito quando 2 agendamentos ocupam o mesmo horario', async () => {
-            for (const time of ['01/06/2030 07:00', '01/06/2030 07:00']) {
+        it('bloqueia Confirmar e resolve conflito com Reagendar Automaticamente', async () => {
+            async function previewOne(date: string, time: string): Promise<void> {
                 await page.click('#schedulesModal .btn-new');
                 await page.waitForSelector('#newScheduleModal');
                 await page.selectOption('#schFlow', 'rec_flow');
                 await page.fill('#schCount', '1');
                 await page.fill('#schInterval', '60');
-                await page.fill('#schDate', '2030-06-01');
+                await page.fill('#schDate', date);
                 await page.click('#newScheduleModal .btn-preview');
                 await page.waitForSelector('#execOrderPreviewModal');
                 await page.locator('#execOrderTable tbody tr').first().locator('.time-input').fill(time);
-                await page.click('#execOrderPreviewModal .btn-confirm');
-                await page.waitForSelector('.schedule-card');
             }
 
-            const badges = page.locator('.schedule-card .conflict-badge');
-            expect(await badges.count()).toBeGreaterThan(0);
-            expect(await badges.first().textContent()).toContain('conflito');
+            await previewOne('2030-06-01', '01/06/2030 07:00');
+            await page.click('#execOrderPreviewModal .btn-confirm');
+            await page.waitForFunction((n) => document.querySelectorAll('.schedule-card').length === n, 1);
 
-            await page.locator('.schedule-card:has(.conflict-badge)').first().locator('.btn-view').click();
-            await page.waitForSelector('#scheduleDetailModal');
-            expect(await page.locator('#scheduleDetailModal .conflict-row').count()).toBeGreaterThanOrEqual(1);
-            await page.click('#scheduleDetailModal .btn-back');
-            await page.waitForSelector('#schedulesModal');
+            await previewOne('2030-06-01', '01/06/2030 07:00');
+
+            expect(await page.locator('#execOrderPreviewBanner .conflict-banner').count()).toBeGreaterThan(0);
+            expect(await page.locator('#execOrderTable .conflict-row').count()).toBeGreaterThan(0);
+            expect(await page.locator('#execOrderPreviewModal .btn-confirm').isDisabled()).toBe(true);
+            await page.waitForSelector('#execOrderPreviewModal .btn-resolve:visible');
+
+            await page.click('#execOrderPreviewModal .btn-resolve');
+            await page.waitForSelector('#scheduleConflictModal');
+            expect(await page.locator('#scheduleConflictModal .conflict-check').count()).toBeGreaterThan(0);
+
+            await page.click('#scheduleConflictModal .btn-reschedule');
+            await page.waitForSelector('#scheduleConflictModal', { state: 'detached' });
+
+            expect(await page.locator('#execOrderPreviewModal .btn-confirm').isDisabled()).toBe(false);
+            await page.click('#execOrderPreviewModal .btn-confirm');
+            await page.waitForFunction((n) => document.querySelectorAll('.schedule-card').length === n, 2);
+
+            expect(await page.locator('.schedule-card .conflict-badge').count()).toBe(0);
         });
 
-        it('marca linhas e badge quando a janela satura com geracao repetida dos valores default', async () => {
-            for (let k = 0; k < 6; k++) {
+        it('resolve conflito excluindo o agendamento conflitante', async () => {
+            const before = await page.locator('.schedule-card').count();
+
+            async function previewOne(date: string, time: string): Promise<void> {
                 await page.click('#schedulesModal .btn-new');
                 await page.waitForSelector('#newScheduleModal');
                 await page.selectOption('#schFlow', 'rec_flow');
-                await page.fill('#schCount', '5');
+                await page.fill('#schCount', '1');
                 await page.fill('#schInterval', '60');
-                await page.fill('#schDate', '2030-07-01');
-                await page.fill('#schTimeStart', '07:00');
-                await page.fill('#schTimeEnd', '07:10');
+                await page.fill('#schDate', date);
                 await page.click('#newScheduleModal .btn-preview');
                 await page.waitForSelector('#execOrderPreviewModal');
-                await page.click('#execOrderPreviewModal .btn-confirm');
-                await page.waitForSelector('.schedule-card');
+                await page.locator('#execOrderTable tbody tr').first().locator('.time-input').fill(time);
             }
 
-            const lastCard = page.locator('.schedule-card').last();
-            expect(await lastCard.locator('.approx-badge').count()).toBeGreaterThan(0);
+            await previewOne('2030-08-01', '01/08/2030 07:00');
+            await page.click('#execOrderPreviewModal .btn-confirm');
+            await page.waitForFunction((n) => document.querySelectorAll('.schedule-card').length === n, before + 1);
 
-            await lastCard.locator('.btn-view').click();
-            await page.waitForSelector('#scheduleDetailModal');
-            expect(await page.locator('#scheduleDetailModal .conflict-row').count()).toBeGreaterThan(0);
-            await page.click('#scheduleDetailModal .btn-back');
-            await page.waitForSelector('#schedulesModal');
+            await previewOne('2030-08-01', '01/08/2030 07:00');
+            await page.waitForSelector('#execOrderPreviewModal .btn-resolve:visible');
+
+            await page.click('#execOrderPreviewModal .btn-resolve');
+            await page.waitForSelector('#scheduleConflictModal');
+            await page.click('#scheduleConflictModal .btn-delete');
+            await page.waitForSelector('#scheduleConflictModal', { state: 'detached' });
+
+            expect(await page.locator('#execOrderPreviewModal .btn-confirm').isDisabled()).toBe(false);
+            await page.click('#execOrderPreviewModal .btn-confirm');
+            await page.waitForFunction((n) => document.querySelectorAll('.schedule-card').length === n, before + 1);
+
+            // o conflitante foi excluido (-1) e o novo agendamento confirmado (+1)
+            expect(await page.locator('.schedule-card .conflict-badge').count()).toBe(0);
         });
 
         it('fecha tela de agendamentos', async () => {
             await page.click('#schedulesModal .btn-close');
             await page.waitForSelector('#schedulesModal', { state: 'detached' });
+        });
+
+        it('salva e recarrega a configuracao global de agendamentos', async () => {
+            await page.click('[data-action="open-config"]');
+            await page.waitForSelector('#configModal');
+            await page.fill('#cfgGap', '1');
+            await page.fill('#cfgAttempts', '10');
+            await page.click('#configModal .btn-save');
+            await page.waitForSelector('#configModal', { state: 'detached' });
+
+            await page.click('[data-action="open-config"]');
+            await page.waitForSelector('#configModal');
+            expect(await page.inputValue('#cfgGap')).toBe('1');
+            expect(await page.inputValue('#cfgAttempts')).toBe('10');
+            await page.click('#configModal .btn-cancel');
+            await page.waitForSelector('#configModal', { state: 'detached' });
+
+            await page.click('[data-action="open-config"]');
+            await page.waitForSelector('#configModal');
+            await page.fill('#cfgGap', '5');
+            await page.fill('#cfgAttempts', '30');
+            await page.click('#configModal .btn-save');
+            await page.waitForSelector('#configModal', { state: 'detached' });
         });
     });
 

@@ -8,7 +8,10 @@ export class ScheduleConflictDetector {
         return Math.max(1, intervaloMinimo) * 1000;
     }
 
-    static collectReservedBlocks(schedules: Schedule[]): ReservedBlock[] {
+    // gapMs: folga global exigida entre ordens de agendamentos DIFERENTES.
+    // Expande cada bloco em gapMs para os dois lados, transformando o critério
+    // "sobreposicao" no criterio "distancia entre ordens >= gapMs".
+    static collectReservedBlocks(schedules: Schedule[], gapMs: number = 0): ReservedBlock[] {
         const blocks: ReservedBlock[] = [];
         for (const s of schedules) {
             if (!s.active) continue;
@@ -17,7 +20,7 @@ export class ScheduleConflictDetector {
                 if (!this.isReservedStatus(inst.status)) continue;
                 blocks.push({
                     start: inst.gatilhoTime,
-                    end: inst.gatilhoTime + durMs,
+                    end: inst.gatilhoTime + durMs + gapMs,
                     scheduleId: s.id,
                     instanceId: inst.id,
                 });
@@ -33,36 +36,52 @@ export class ScheduleConflictDetector {
     static mergeReservedBlocks(blocks: ReservedBlock[]): ReservedBlock[] {
         if (blocks.length === 0) return [];
         const sorted = [...blocks].sort((a, b) => a.start - b.start);
-        const merged: ReservedBlock[] = [{ start: sorted[0].start, end: sorted[0].end }];
+        const toMerged = (b: ReservedBlock): ReservedBlock => ({
+            start: b.start,
+            end: b.end,
+            scheduleId: b.scheduleId,
+            instanceId: b.instanceId,
+            scheduleIds: b.scheduleId ? [b.scheduleId] : undefined,
+        });
+        const merged: ReservedBlock[] = [toMerged(sorted[0])];
         for (let i = 1; i < sorted.length; i++) {
             const last = merged[merged.length - 1];
             if (sorted[i].start <= last.end) {
-                if (sorted[i].end > last.end) last.end = sorted[i].end;
+                if (sorted[i].end > last.end) {
+                    last.end = sorted[i].end;
+                    last.scheduleId = sorted[i].scheduleId;
+                    last.instanceId = sorted[i].instanceId;
+                }
+                const sid = sorted[i].scheduleId;
+                if (sid) {
+                    last.scheduleIds = last.scheduleIds || [];
+                    if (!last.scheduleIds.includes(sid)) last.scheduleIds.push(sid);
+                }
             } else {
-                merged.push({ start: sorted[i].start, end: sorted[i].end });
+                merged.push(toMerged(sorted[i]));
             }
         }
         return merged;
     }
 
     // others: demais agendamentos. Blocos do proprio agendamento (pelo id) nunca contam.
-    static conflicts(schedule: Schedule, others: Schedule[]): Map<number, ReservedBlock[]> {
+    static conflicts(schedule: Schedule, others: Schedule[], gapMs: number = 0): Map<number, ReservedBlock[]> {
         const blocks = this.mergeReservedBlocks(
-            this.collectReservedBlocks(others).filter(b => b.scheduleId !== schedule.id)
+            this.collectReservedBlocks(others, gapMs).filter(b => b.scheduleId !== schedule.id)
         );
         const durMs = this.reservedDurationMs(schedule.intervaloMinimo);
         const result = new Map<number, ReservedBlock[]>();
         for (const inst of schedule.executionOrder) {
             if (!this.isReservedStatus(inst.status)) continue;
             const start = inst.gatilhoTime;
-            const end = start + durMs;
+            const end = start + durMs + gapMs;
             const overlapping = blocks.filter(b => start < b.end && b.start < end);
             if (overlapping.length > 0) result.set(inst.id, overlapping);
         }
         return result;
     }
 
-    static conflictCount(schedule: Schedule, others: Schedule[]): number {
-        return this.conflicts(schedule, others).size;
+    static conflictCount(schedule: Schedule, others: Schedule[], gapMs: number = 0): number {
+        return this.conflicts(schedule, others, gapMs).size;
     }
 }

@@ -23,6 +23,7 @@
         .btn-warning { background: #e17055; color: #fff; }
         .btn-warning:hover { background: #d35d43; }
         .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
         .fluxos-grid { display: flex; flex-direction: column; gap: 16px; }
         .fluxo-card { background: #1a1a2e; border: 1px solid #333; border-radius: 10px; overflow: hidden; }
@@ -153,6 +154,7 @@
             <button class="btn btn-success btn-sm" data-action="save-file">💾 Salvar</button>
             <button class="btn btn-outline btn-sm" data-action="save-file-as">💾 Salvar Como</button>
             <span style="color:#444">|</span>
+            <button class="btn btn-outline btn-sm" data-action="open-config">⚙ Config</button>
             <button class="btn btn-warning btn-sm" data-action="open-var-config">⚙ Config Variaveis</button>
             <button class="btn btn-primary btn-sm" data-action="open-schedules">📅 Agendamentos</button>
         </div>

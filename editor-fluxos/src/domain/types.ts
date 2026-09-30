@@ -29,4 +29,5 @@ export interface ReservedBlock {
     end: number;
     scheduleId?: string;
     instanceId?: number;
+    scheduleIds?: string[];
 }

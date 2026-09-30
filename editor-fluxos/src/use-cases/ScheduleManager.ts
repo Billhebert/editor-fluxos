@@ -51,7 +51,8 @@ export class ScheduleManager {
             config.dataInicio || null,
             config.dataFim || null,
             config.days,
-            existingSchedules
+            existingSchedules,
+            { pushOnConflict: config.pushOnConflict }
         );
 
         const schedule = new Schedule({ ...config, executionOrder: order });
@@ -106,8 +107,11 @@ export class ScheduleManager {
         dataInicio?: string | null,
         dataFim?: string | null,
         days?: number[],
-        existingSchedules?: Schedule[]
+        existingSchedules?: Schedule[],
+        opts?: { pushOnConflict?: boolean; conflictGapMs?: number }
     ): ExecutionInstance[] {
+        const pushOnConflict = opts?.pushOnConflict !== false;
+        const gapMs = opts?.conflictGapMs || 0;
         const [sh, sm] = timeStart.split(':').map(Number);
         const [eh, em] = timeEnd.split(':').map(Number);
         const startMin = sh * 60 + sm;
@@ -158,7 +162,7 @@ export class ScheduleManager {
 
         const dayStartList = this._computeDayStartList(date, dataInicio, dataFim, days);
 
-        const reserved = ScheduleConflictDetector.collectReservedBlocks(existingSchedules || []);
+        const reserved = ScheduleConflictDetector.collectReservedBlocks(existingSchedules || [], gapMs);
         const reservedByDay = new Map<string, ReservedBlock[]>();
         for (const block of reserved) {
             const key = this._dayKey(block.start);
@@ -171,6 +175,13 @@ export class ScheduleManager {
         const approxFlags: boolean[] = [];
         for (const dayStart of dayStartList) {
             const raw = timestampsForDay(dayStart);
+            if (!pushOnConflict) {
+                raw.forEach(ts => {
+                    allTimestamps.push(ts);
+                    approxFlags.push(false);
+                });
+                continue;
+            }
             const dayReserved = reservedByDay.get(this._dayKey(dayStart)) || [];
             const windowStart = dayStart + startMin * 60 * 1000;
             const windowEnd = dayStart + endMin * 60 * 1000;

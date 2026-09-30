@@ -16,16 +16,47 @@ export interface NewScheduleResult {
     interval: number;
     dataInicio: string | null;
     dataFim: string | null;
+    pushOnConflict: boolean;
 }
 
 export interface NewScheduleCallbacks {
     onClose(): void;
     onGenerate(result: NewScheduleResult): void;
-    generateOrder(template: RawAction[], obrigValor: string, count: number, date: string, timeStart: string, timeEnd: string, interval: number, dataInicio?: string | null, dataFim?: string | null, days?: number[]): ExecutionInstance[];
+    generateOrder(template: RawAction[], obrigValor: string, count: number, date: string, timeStart: string, timeEnd: string, interval: number, dataInicio?: string | null, dataFim?: string | null, days?: number[], pushOnConflict?: boolean): ExecutionInstance[];
+}
+
+export interface NewSchedulePrefill {
+    flowName: string;
+    obrigValor: string;
+    count: number;
+    interval: number;
+    mode: ScheduleMode;
+    date: string;
+    timeStart: string;
+    timeEnd: string;
+    days: number[];
+    dataInicio: string | null;
+    dataFim: string | null;
+    pushOnConflict: boolean;
+}
+
+// Memoriza o ultimo formulario para o fluxo "editar manualmente" nao perder os dados.
+let lastForm: NewSchedulePrefill | null = null;
+
+export function rememberScheduleForm(form: NewSchedulePrefill): void {
+    lastForm = { ...form };
+}
+
+export function getLastScheduleForm(): NewSchedulePrefill | null {
+    return lastForm ? { ...lastForm } : null;
+}
+
+export function clearRememberedScheduleForm(): void {
+    lastForm = null;
 }
 
 export class NewScheduleView {
-    show(fluxos: Record<string, RawAction[]>, varConfig: VariablePool, callbacks: NewScheduleCallbacks): void {
+    show(fluxos: Record<string, RawAction[]>, varConfig: VariablePool, callbacks: NewScheduleCallbacks, prefill?: NewSchedulePrefill): void {
         const flowNames = Object.keys(fluxos);
         if (flowNames.length === 0) { alert('Crie pelo menos um fluxo primeiro!'); return; }
 
@@ -68,6 +99,17 @@ export class NewScheduleView {
                 <div style="display:flex; gap:8px;">
                     <button class="btn btn-primary btn-sm btn-mode-one">Unico</button>
                     <button class="btn btn-outline btn-sm btn-mode-recur">Recorrente</button>
+                </div>
+
+                <div class="section-title">Ao Conflitar</div>
+                <div class="config-row">
+                    <label style="display:flex; align-items:center; gap:8px; color:#aaa; font-size:13px;">
+                        <span class="toggle">
+                            <input type="checkbox" id="schPush" checked />
+                            <span class="toggle-slider"></span>
+                        </span>
+                        Empurrar ordens para depois do horario em conflito
+                    </label>
                 </div>
 
                 <div id="modeOneShotFields">
@@ -119,6 +161,37 @@ export class NewScheduleView {
         if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
         let currentMode: ScheduleMode = 'one-shot';
+
+        const applyPrefill = (p: NewSchedulePrefill) => {
+            const flowSelect = document.getElementById('schFlow') as HTMLSelectElement;
+            if (flowSelect && flowSelect.querySelector(`option[value="${CSS.escape(p.flowName)}"]`)) flowSelect.value = p.flowName;
+            const obrigSelect = document.getElementById('schObrigValue') as HTMLSelectElement;
+            if (obrigSelect && p.obrigValor) obrigSelect.value = p.obrigValor;
+            (document.getElementById('schCount') as HTMLInputElement).value = String(p.count);
+            (document.getElementById('schInterval') as HTMLInputElement).value = String(p.interval);
+            (document.getElementById('schDate') as HTMLInputElement).value = p.date;
+            (document.getElementById('schTimeStart') as HTMLInputElement).value = p.timeStart;
+            (document.getElementById('schTimeEnd') as HTMLInputElement).value = p.timeEnd;
+            (document.getElementById('schPush') as HTMLInputElement).checked = p.pushOnConflict !== false;
+            const modeOne = overlay.querySelector('.btn-mode-one')!;
+            const modeRecur = overlay.querySelector('.btn-mode-recur')!;
+            if (p.mode === 'recurring') {
+                currentMode = 'recurring';
+                modeOne.className = 'btn btn-outline btn-sm btn-mode-one';
+                modeRecur.className = 'btn btn-primary btn-sm btn-mode-recur';
+                document.getElementById('modeOneShotFields')!.style.display = 'none';
+                document.getElementById('modeRecurringFields')!.style.display = 'block';
+                (document.getElementById('schDataInicio') as HTMLInputElement).value = p.dataInicio || '';
+                (document.getElementById('schDataFim') as HTMLInputElement).value = p.dataFim || '';
+                (document.getElementById('schTimeStartR') as HTMLInputElement).value = p.timeStart;
+                (document.getElementById('schTimeEndR') as HTMLInputElement).value = p.timeEnd;
+                (p.days || []).forEach(d => {
+                    const box = overlay.querySelector<HTMLInputElement>(`.sch-day[value="${d}"]`);
+                    if (box) box.checked = true;
+                });
+            }
+        };
+        if (prefill) applyPrefill(prefill);
 
         overlay.querySelector('.btn-close')!.addEventListener('click', () => { overlay.remove(); callbacks.onClose(); });
         overlay.querySelector('.btn-mode-one')!.addEventListener('click', () => {
@@ -174,10 +247,18 @@ export class NewScheduleView {
                 days = [...overlay.querySelectorAll('.sch-day:checked')].map((c) => parseInt((c as HTMLInputElement).value));
             }
 
-            const order = callbacks.generateOrder(template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days);
+            const pushOnConflict = (document.getElementById('schPush') as HTMLInputElement).checked;
+
+            const order = callbacks.generateOrder(template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days, pushOnConflict);
+
+            rememberScheduleForm({
+                flowName, obrigValor: obrigValor || '', count, interval: interval || 60,
+                mode: currentMode, date, timeStart, timeEnd, days, dataInicio, dataFim,
+                pushOnConflict,
+            });
 
             overlay.remove();
-            callbacks.onGenerate({ flowName, order, mode: currentMode, date, timeStart, timeEnd, days, obrigValor, count, interval, dataInicio, dataFim });
+            callbacks.onGenerate({ flowName, order, mode: currentMode, date, timeStart, timeEnd, days, obrigValor, count, interval, dataInicio, dataFim, pushOnConflict });
         });
     }
 }

@@ -10,6 +10,7 @@ export interface ScheduleConfig {
     intervaloMinimo?: number;
     mode?: ScheduleMode;
     active?: boolean;
+    pushOnConflict?: boolean;
     date?: string;
     days?: number[];
     timeStart?: string;
@@ -17,6 +18,15 @@ export interface ScheduleConfig {
     dataInicio?: string | null;
     dataFim?: string | null;
     executionOrder?: any[];
+}
+
+// Sequencia monotonica: Date.now() sozinho colide quando dois agendamentos
+// sao criados no mesmo milissegundo, o que quebra remocao/atribuicao por id.
+let idSeq = 0;
+
+function nextScheduleId(): string {
+    idSeq = (idSeq + 1) % Number.MAX_SAFE_INTEGER;
+    return `sch_${Date.now().toString(36)}_${idSeq.toString(36)}`;
 }
 
 export class Schedule {
@@ -27,6 +37,7 @@ export class Schedule {
     intervaloMinimo: number;
     mode: ScheduleMode;
     active: boolean;
+    pushOnConflict: boolean;
     date: string | null;
     days: number[];
     timeStart: string;
@@ -40,13 +51,14 @@ export class Schedule {
             throw new ValidationError('Schedule.flowName', 'cannot be empty');
         }
 
-        this.id = config.id || 'sch_' + Date.now();
+        this.id = config.id || nextScheduleId();
         this.flowName = config.flowName.trim();
         this.obrigatorioValor = config.obrigatorioValor || '';
         this.repeticoes = (config.repeticoes != null && config.repeticoes > 0) ? config.repeticoes : 1;
         this.intervaloMinimo = (config.intervaloMinimo != null && config.intervaloMinimo > 0) ? config.intervaloMinimo : 60;
         this.mode = config.mode || 'one-shot';
         this.active = config.active !== false;
+        this.pushOnConflict = config.pushOnConflict !== false;
         this.date = config.date || null;
         this.days = (config.days || []).filter(d => d >= 0 && d <= 6);
         this.timeStart = config.timeStart || '07:00';
@@ -94,6 +106,7 @@ export class Schedule {
             intervaloMinimo: this.intervaloMinimo,
             mode: this.mode,
             active: this.active,
+            pushOnConflict: this.pushOnConflict,
             date: this.date,
             days: this.days,
             timeStart: this.timeStart,
