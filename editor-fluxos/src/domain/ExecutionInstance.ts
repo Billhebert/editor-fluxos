@@ -19,6 +19,9 @@ export class ExecutionInstance {
     get isRunning(): boolean { return this.status === 'running'; }
     get isCompleted(): boolean { return this.status === 'completed'; }
     get isFailed(): boolean { return this.status === 'failed'; }
+    get isMissed(): boolean { return this.status === 'missed'; }
+    get isCancelled(): boolean { return this.status === 'cancelled'; }
+    get isSettled(): boolean { return this.isCompleted || this.isFailed || this.isMissed || this.isCancelled; }
 
     isDue(now: number = Date.now()): boolean {
         return this.isPending && now >= this.gatilhoTime;
@@ -27,6 +30,8 @@ export class ExecutionInstance {
     markRunning(): void { this.status = 'running'; }
     markCompleted(): void { this.status = 'completed'; }
     markFailed(): void { this.status = 'failed'; }
+    markMissed(): void { this.status = 'missed'; }
+    markCancelled(): void { this.status = 'cancelled'; }
 
     updateTimestamp(newTime: number): void {
         this.gatilhoTime = newTime;

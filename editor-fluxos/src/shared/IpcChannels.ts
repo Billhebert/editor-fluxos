@@ -8,6 +8,8 @@ export const IpcChannels = {
     MENU_SAVE_AS: 'menu-save-as',
     // Action execution
     EXECUTE_ACTION: 'execute-action',
+    STOP_EXECUTION: 'stop-execution',
+    FIND_IMAGE: 'find-image',
     // Mouse capture
     REGISTER_CAPTURE: 'register-capture-shortcut',
     UNREGISTER_CAPTURE: 'unregister-capture-shortcut',
@@ -20,6 +22,7 @@ export const IpcChannels = {
     STOP_SCHEDULER: 'stop-scheduler',
     // Scheduler events (main -> renderer)
     EXECUTE_SCHEDULED: 'execute-scheduled',
+    SCHEDULE_STATUS_CHANGED: 'schedule-status-changed',
     // Auto-update
     INSTALL_UPDATE: 'install-update',
     CHECK_UPDATES: 'check-updates',

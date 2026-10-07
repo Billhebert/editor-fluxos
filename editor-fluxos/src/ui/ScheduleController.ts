@@ -18,6 +18,7 @@ export interface ScheduleContext {
     scheduleManager: ScheduleManager;
     loadSchedules(): Promise<any[]>;
     saveSchedules(schedules: any[]): Promise<void>;
+    onScheduleStatusChanged?(listener: (schedules: any[]) => void): void;
 }
 
 export class ScheduleController {
@@ -49,7 +50,19 @@ export class ScheduleController {
 
     async openSchedules(): Promise<void> {
         this._schedules = await this._ctx.loadSchedules();
+        this._bindStatusUpdates();
         this._showList();
+    }
+
+    private _statusListener: ((schedules: any[]) => void) | null = null;
+
+    private _bindStatusUpdates(): void {
+        if (this._statusListener || !this._ctx.onScheduleStatusChanged) return;
+        this._statusListener = (schedules: any[]) => {
+            this._schedules = schedules.map(s => Schedule.fromJSON(s));
+            this._listView.update(this._buildViewModels());
+        };
+        this._ctx.onScheduleStatusChanged(this._statusListener);
     }
 
     private async _persist(): Promise<void> {
@@ -97,7 +110,7 @@ export class ScheduleController {
                 scheduleId: sch.id,
                 flowName: sch.flowName,
                 active: sch.active,
-                conflictCount: sch.active ? this._conflictService.conflictCountInSet(sch, this._schedules) : 0,
+                conflictCount: sch.active ? this._conflictService.conflictCountInSet(sch, this._schedules, this.gapMs) : 0,
                 approxCount: sch.executionOrder.filter(inst => inst.approx === true).length,
                 total: sch.executionOrder.length,
                 completed: sch.executionOrder.filter(inst => inst.status === 'completed').length,
@@ -118,7 +131,7 @@ export class ScheduleController {
     private _openDetail(scheduleId: string): void {
         const sch = this._schedules.find(s => s.id === scheduleId);
         if (!sch) return;
-        const conflictIds = sch.active ? this._conflictService.conflictingInstanceIds(sch, this._schedules) : [];
+        const conflictIds = sch.active ? this._conflictService.conflictingInstanceIds(sch, this._schedules, this.gapMs) : [];
         this._detailView.show(sch, {
             onBack: () => this._showList()
         }, conflictIds);
@@ -128,16 +141,17 @@ export class ScheduleController {
         this._newView.show(this._ctx.getFluxos(), this._ctx.getVarConfig(), {
             onClose: () => this._showList(),
             generateOrder: (template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days, pushOnConflict) => {
+                const [sh, sm] = timeStart.split(':').map(Number);
+                const [eh, em] = timeEnd.split(':').map(Number);
+                const windowSeconds = ((eh * 60 + em) - (sh * 60 + sm)) * 60;
+                const requiredWindow = (count - 1) * Math.max(interval, 1);
+                if (requiredWindow > windowSeconds) {
+                    throw new Error(`${count}x a cada ${interval}s nao cabe em ${timeStart}-${timeEnd}. Aumente a janela, reduza as repeticoes ou o intervalo minimo.`);
+                }
                 const order = this._ctx.scheduleManager.generateExecutionOrder(
                     template, obrigValor, count, date, timeStart, timeEnd, interval, this._ctx.getVarConfig(), dataInicio, dataFim, days, this._schedules,
                     { pushOnConflict, conflictGapMs: this.gapMs }
                 );
-                const [sh, sm] = timeStart.split(':').map(Number);
-                const [eh, em] = timeEnd.split(':').map(Number);
-                const windowSeconds = ((eh * 60 + em) - (sh * 60 + sm)) * 60;
-                if ((count - 1) * Math.max(interval, 1) > windowSeconds) {
-                    Toast.warning(`Aviso: ${count}x a cada ${interval}s nao cabe em ${timeStart}-${timeEnd}; sera distribuido aleatoriamente na janela disponivel`);
-                }
                 if (this._ctx.scheduleManager.lastUnsettledCount > 0) {
                     Toast.warning(`${this._ctx.scheduleManager.lastUnsettledCount} execucao(es) nao couberam na janela sem conflitar com outros agendamentos; horarios aproximados`);
                 }

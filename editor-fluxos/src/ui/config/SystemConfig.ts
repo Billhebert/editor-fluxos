@@ -1,9 +1,11 @@
 // Configuracao global do sistema (persistida em localStorage).
-// Regras invariantes: gap minimo entre ordens de schedules diferentes e
-// quantidade de tentativas do reagendamento automatico.
+// Regras invariantes: gap minimo entre ordens de schedules diferentes,
+// quantidade de tentativas do reagendamento automatico, ritmo de execucao.
 export interface SystemConfig {
     gapMinutes: number;
     rescheduleAttempts: number;
+    minInteractionMs: number;
+    minFlowGapMs: number;
 }
 
 const STORAGE_KEY = 'fluxos_system_config';
@@ -11,6 +13,8 @@ const STORAGE_KEY = 'fluxos_system_config';
 export const SYSTEM_CONFIG_DEFAULTS: SystemConfig = {
     gapMinutes: 5,
     rescheduleAttempts: 30,
+    minInteractionMs: 500,
+    minFlowGapMs: 5000,
 };
 
 export function loadSystemConfig(): SystemConfig {
@@ -21,6 +25,8 @@ export function loadSystemConfig(): SystemConfig {
         return {
             gapMinutes: numberInRange(parsed.gapMinutes, 0, 24 * 60, SYSTEM_CONFIG_DEFAULTS.gapMinutes),
             rescheduleAttempts: numberInRange(parsed.rescheduleAttempts, 1, 1000, SYSTEM_CONFIG_DEFAULTS.rescheduleAttempts),
+            minInteractionMs: numberInRange(parsed.minInteractionMs, 0, 60 * 60 * 1000, SYSTEM_CONFIG_DEFAULTS.minInteractionMs),
+            minFlowGapMs: numberInRange(parsed.minFlowGapMs, 0, 60 * 60 * 1000, SYSTEM_CONFIG_DEFAULTS.minFlowGapMs),
         };
     } catch {
         return { ...SYSTEM_CONFIG_DEFAULTS };

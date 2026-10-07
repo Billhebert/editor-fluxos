@@ -47,9 +47,21 @@ class IpcService {
         return this.invoke(IpcChannels.UPDATE_INSTANCE_STATUS, { scheduleId, instanceId, status });
     }
 
+    onScheduleStatusChanged(listener: (schedules: any[]) => void): void {
+        this.on(IpcChannels.SCHEDULE_STATUS_CHANGED, listener);
+    }
+
     // === Execution ===
     async executeAction(action: any): Promise<void> {
         return this.invoke(IpcChannels.EXECUTE_ACTION, action);
+    }
+
+    async stopExecution(): Promise<void> {
+        return this.invoke(IpcChannels.STOP_EXECUTION);
+    }
+
+    async findImage(assetId: string, confidence?: number, timeout?: number): Promise<{ x: number; y: number; width: number; height: number; confidence: number } | null> {
+        return this.invoke(IpcChannels.FIND_IMAGE, { assetId, confidence, timeout });
     }
 
     // === Mouse capture ===

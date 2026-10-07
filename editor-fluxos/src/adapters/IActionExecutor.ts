@@ -1,5 +1,5 @@
 import { RawAction } from '../domain/types';
 
 export interface IActionExecutor {
-    execute(action: RawAction): Promise<void>;
+    execute(action: RawAction, signal?: AbortSignal): Promise<void>;
 }

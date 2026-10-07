@@ -23,21 +23,25 @@ describe('WEEK_DAYS', () => {
 });
 
 describe('STATUS_COLORS', () => {
-    it('has all 4 statuses', () => {
-        expect(Object.keys(STATUS_COLORS)).toHaveLength(4);
+    it('has all 6 statuses', () => {
+        expect(Object.keys(STATUS_COLORS)).toHaveLength(6);
         expect(STATUS_COLORS.completed).toBe('#00b894');
         expect(STATUS_COLORS.failed).toBe('#e17055');
         expect(STATUS_COLORS.running).toBe('#74b9ff');
         expect(STATUS_COLORS.pending).toBe('#fdcb6e');
+        expect(STATUS_COLORS.missed).toBe('#636e72');
+        expect(STATUS_COLORS.cancelled).toBe('#b2bec3');
     });
 });
 
 describe('STATUS_LABELS', () => {
-    it('has all 4 labels', () => {
-        expect(Object.keys(STATUS_LABELS)).toHaveLength(4);
+    it('has all 6 labels', () => {
+        expect(Object.keys(STATUS_LABELS)).toHaveLength(6);
         expect(STATUS_LABELS.completed).toContain('Concluido');
         expect(STATUS_LABELS.failed).toContain('Falhou');
         expect(STATUS_LABELS.running).toContain('Rodando');
         expect(STATUS_LABELS.pending).toContain('Pendente');
+        expect(STATUS_LABELS.missed).toContain('Perdido');
+        expect(STATUS_LABELS.cancelled).toContain('Cancelado');
     });
 });

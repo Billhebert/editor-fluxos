@@ -126,6 +126,40 @@ export class RecordingController {
         input.value = '';
     }
 
+    addClickImageAction(): void {
+        const assetInput = document.getElementById('imageAssetId') as HTMLInputElement;
+        const confidenceInput = document.getElementById('imageConfidence') as HTMLInputElement;
+        const timeoutInput = document.getElementById('imageTimeout') as HTMLInputElement;
+        if (!assetInput) return;
+        const assetId = assetInput.value.trim();
+        if (!assetId) return;
+        this.addToQueue({
+            type: 'click-image',
+            assetId,
+            confidence: parseFloat(confidenceInput?.value || '0.8'),
+            timeout: parseInt(timeoutInput?.value || '5000', 10),
+        });
+        assetInput.value = '';
+    }
+
+    addIfImageAction(): void {
+        const assetInput = document.getElementById('imageAssetId') as HTMLInputElement;
+        const confidenceInput = document.getElementById('imageConfidence') as HTMLInputElement;
+        const timeoutInput = document.getElementById('imageTimeout') as HTMLInputElement;
+        if (!assetInput) return;
+        const assetId = assetInput.value.trim();
+        if (!assetId) return;
+        this.addToQueue({
+            type: 'if-image',
+            assetId,
+            confidence: parseFloat(confidenceInput?.value || '0.8'),
+            timeout: parseInt(timeoutInput?.value || '5000', 10),
+            then: [],
+            else: [],
+        });
+        assetInput.value = '';
+    }
+
     setupKeyboardRecording(): void {
         document.addEventListener('keydown', (e) => {
             if (!this._isKeyRecording) return;

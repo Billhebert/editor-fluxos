@@ -1,5 +1,6 @@
 export { FlowManager } from './FlowManager';
 export { FlowExecutor } from './FlowExecutor';
+export { ExecutionTimingPolicy } from './ExecutionTimingPolicy';
 export { ScheduleManager } from './ScheduleManager';
 export { ScheduleConflictDetector } from './ScheduleConflictDetector';
 export { ScheduleConflictService } from './ScheduleConflictService';

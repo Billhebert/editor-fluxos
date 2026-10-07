@@ -26,6 +26,7 @@ export class ExecutionController {
     private _flowRenderer: FlowRenderer;
     private _queue: SerialExecutionQueue;
     private _idlePollMs: number;
+    private _currentFlowName: string | null = null;
 
     constructor(
         ctx: ExecutionControllerContext,
@@ -39,10 +40,14 @@ export class ExecutionController {
         this._idlePollMs = idlePollMs;
     }
 
+    get isRunning(): boolean { return this._ctx.flowExecutor.isRunning; }
+    get currentFlowName(): string | null { return this._currentFlowName; }
+
     async executeFlow(flowName: string, rawActions: RawAction[]): Promise<void> {
         if (this._ctx.flowExecutor.isRunning) { alert('Ja existe uma execucao em andamento!'); return; }
 
         const flow = new Flow(flowName, rawActions);
+        this._currentFlowName = flowName;
 
         try {
             this._flowRenderer.setRunning(flowName, true);
@@ -56,7 +61,17 @@ export class ExecutionController {
         } finally {
             this._flowRenderer.setRunning(flowName, false);
             this._flowRenderer.clearHighlights(flowName);
+            this._currentFlowName = null;
         }
+    }
+
+    stop(): void {
+        this._ctx.flowExecutor.stop();
+        if (this._currentFlowName) {
+            this._flowRenderer.setRunning(this._currentFlowName, false);
+            this._flowRenderer.clearHighlights(this._currentFlowName);
+        }
+        Toast.warning('Execucao interrompida.');
     }
 
     executeScheduledInstance(payload: ScheduledPayload): Promise<void> {
@@ -66,6 +81,7 @@ export class ExecutionController {
             this._queue.push(async () => {
                 try {
                     await this._waitForIdle();
+                    this._currentFlowName = flowName;
                     await this._ctx.flowExecutor.executeActions(resolvedActions);
                     await this._ctx.statusSink.updateInstanceStatus(scheduleId, instanceId, 'completed');
                     Toast.success(`${flowName} #${instanceId} concluido!`);
@@ -73,6 +89,7 @@ export class ExecutionController {
                     await this._ctx.statusSink.updateInstanceStatus(scheduleId, instanceId, 'failed');
                     Toast.error(`${flowName} #${instanceId} falhou!`);
                 } finally {
+                    this._currentFlowName = null;
                     resolve();
                 }
             });

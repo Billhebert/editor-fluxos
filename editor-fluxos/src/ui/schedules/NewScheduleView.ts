@@ -2,6 +2,7 @@ import { VariablePool, RawAction, ScheduleMode } from '../../domain';
 import { WEEK_DAYS } from '../../domain/constants';
 import { ExecutionInstance } from '../../domain/ExecutionInstance';
 import { escapeHtml } from '../escapeHtml';
+import { Toast } from '../Toast';
 
 export interface NewScheduleResult {
     flowName: string;
@@ -158,7 +159,10 @@ export class NewScheduleView {
 
         document.body.appendChild(overlay);
         const dateInput = document.getElementById('schDate') as HTMLInputElement;
-        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+        if (dateInput) {
+            const today = new Date();
+            dateInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
 
         let currentMode: ScheduleMode = 'one-shot';
 
@@ -249,7 +253,13 @@ export class NewScheduleView {
 
             const pushOnConflict = (document.getElementById('schPush') as HTMLInputElement).checked;
 
-            const order = callbacks.generateOrder(template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days, pushOnConflict);
+            let order: ExecutionInstance[];
+            try {
+                order = callbacks.generateOrder(template, obrigValor, count, date, timeStart, timeEnd, interval, dataInicio, dataFim, days, pushOnConflict);
+            } catch (err: any) {
+                Toast.error(err.message || 'Erro ao gerar ordem');
+                return;
+            }
 
             rememberScheduleForm({
                 flowName, obrigValor: obrigValor || '', count, interval: interval || 60,

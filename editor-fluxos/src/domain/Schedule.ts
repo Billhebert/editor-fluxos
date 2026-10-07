@@ -79,6 +79,14 @@ export class Schedule {
         return this.executionOrder.filter(i => i.status === 'failed').length;
     }
 
+    get missedCount(): number {
+        return this.executionOrder.filter(i => i.status === 'missed').length;
+    }
+
+    get cancelledCount(): number {
+        return this.executionOrder.filter(i => i.status === 'cancelled').length;
+    }
+
     get pendingInstances(): ExecutionInstance[] {
         return this.executionOrder.filter(i => i.status === 'pending');
     }
@@ -91,6 +99,10 @@ export class Schedule {
 
     toggleActive(active: boolean): void {
         this.active = active;
+    }
+
+    updateExecutionOrder(order: ExecutionInstance[]): void {
+        this.executionOrder = order.map(i => i instanceof ExecutionInstance ? i : ExecutionInstance.fromJSON(i));
     }
 
     findInstance(id: number): ExecutionInstance | undefined {

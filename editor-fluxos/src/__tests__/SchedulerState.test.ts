@@ -21,17 +21,52 @@ describe('SchedulerState', () => {
         expect(state.schedules).toEqual([]);
     });
 
-    it('setSchedules replaces schedules', () => {
+    it('initialize replaces schedules and recovers interrupted', () => {
+        const state = new SchedulerState();
+        const s1 = makeSchedule('s1', 'f1', {
+            executionOrder: [
+                { id: 1, status: 'running', resolvedActions: ['a'], gatilhoTime: Date.now() - 1000 },
+            ],
+        });
+        state.initialize([s1]);
+        expect(state.schedules).toHaveLength(1);
+        expect(state.schedules[0].executionOrder[0].status).toBe('pending');
+    });
+
+    it('replaceSchedules preserves runtime statuses', () => {
         const state = new SchedulerState();
         const s1 = makeSchedule('s1', 'f1');
-        state.setSchedules([s1]);
-        expect(state.schedules).toHaveLength(1);
-        expect(state.schedules[0].id).toBe('s1');
+        state.initialize([s1]);
+        state.updateInstanceStatus('s1', 1, 'completed');
+
+        const s1Edited = makeSchedule('s1', 'f1', { active: false });
+        state.replaceSchedules([s1Edited]);
+
+        expect(state.schedules[0].executionOrder[0].status).toBe('completed');
+        expect(state.schedules[0].active).toBe(false);
+    });
+
+    it('markMissedBefore marks pending instances before startup time', () => {
+        const state = new SchedulerState();
+        const now = Date.now();
+        const schedule = makeSchedule('s1', 'f1', {
+            executionOrder: [
+                { id: 1, status: 'pending', resolvedActions: ['a'], gatilhoTime: now - 5000 },
+                { id: 2, status: 'pending', resolvedActions: ['b'], gatilhoTime: now + 5000 },
+                { id: 3, status: 'completed', resolvedActions: ['c'], gatilhoTime: now - 5000 },
+            ],
+        });
+        state.initialize([schedule]);
+        state.markMissedBefore(now);
+
+        expect(schedule.executionOrder[0].status).toBe('missed');
+        expect(schedule.executionOrder[1].status).toBe('pending');
+        expect(schedule.executionOrder[2].status).toBe('completed');
     });
 
     it('updateInstanceStatus updates and returns true', () => {
         const state = new SchedulerState();
-        state.setSchedules([makeSchedule('s1', 'f1')]);
+        state.initialize([makeSchedule('s1', 'f1')]);
 
         const result = state.updateInstanceStatus('s1', 1, 'completed');
 
@@ -41,14 +76,14 @@ describe('SchedulerState', () => {
 
     it('updateInstanceStatus returns false if schedule not found', () => {
         const state = new SchedulerState();
-        state.setSchedules([makeSchedule('s1', 'f1')]);
+        state.initialize([makeSchedule('s1', 'f1')]);
 
         expect(state.updateInstanceStatus('nonexistent', 1, 'completed')).toBe(false);
     });
 
     it('updateInstanceStatus returns false if instance not found', () => {
         const state = new SchedulerState();
-        state.setSchedules([makeSchedule('s1', 'f1')]);
+        state.initialize([makeSchedule('s1', 'f1')]);
 
         expect(state.updateInstanceStatus('s1', 999, 'completed')).toBe(false);
     });
@@ -60,7 +95,7 @@ describe('SchedulerState', () => {
                 { id: 10, status: 'pending', resolvedActions: ['enter'], gatilhoTime: Date.now() - 5000 },
             ],
         });
-        state.setSchedules([schedule]);
+        state.initialize([schedule]);
 
         const due = state.getDueInstances(Date.now());
 
@@ -74,7 +109,7 @@ describe('SchedulerState', () => {
     it('getDueInstances skips inactive schedules', () => {
         const state = new SchedulerState();
         const schedule = makeSchedule('s1', 'f1', { active: false });
-        state.setSchedules([schedule]);
+        state.initialize([schedule]);
 
         const due = state.getDueInstances(Date.now());
         expect(due).toHaveLength(0);
@@ -87,10 +122,23 @@ describe('SchedulerState', () => {
                 { id: 1, status: 'pending', resolvedActions: ['a'], gatilhoTime: Date.now() + 60000 },
             ],
         });
-        state.setSchedules([schedule]);
+        state.initialize([schedule]);
 
         const due = state.getDueInstances(Date.now());
         expect(due).toHaveLength(0);
+    });
+
+    it('getDueInstances skips missed and cancelled instances', () => {
+        const state = new SchedulerState();
+        const schedule = makeSchedule('s1', 'f1', {
+            executionOrder: [
+                { id: 1, status: 'missed', resolvedActions: ['a'], gatilhoTime: Date.now() - 5000 },
+                { id: 2, status: 'cancelled', resolvedActions: ['b'], gatilhoTime: Date.now() - 5000 },
+            ],
+        });
+        state.initialize([schedule]);
+
+        expect(state.getDueInstances(Date.now())).toHaveLength(0);
     });
 
     it('getDueInstances returns empty for no schedules', () => {
@@ -105,39 +153,10 @@ describe('SchedulerState', () => {
                 { id: 1, status: 'pending', resolvedActions: ['a'], gatilhoTime: Date.now() - 1000 },
             ],
         });
-        state.setSchedules([schedule]);
+        state.initialize([schedule]);
 
         state.getDueInstances(Date.now());
 
         expect(schedule.executionOrder[0].status).toBe('running');
-    });
-
-    it('recupera execucoes interrompidas (running -> pending) ao carregar', () => {
-        const state = new SchedulerState();
-        const schedule = makeSchedule('s1', 'f1', {
-            executionOrder: [
-                { id: 1, status: 'running', resolvedActions: ['a'], gatilhoTime: Date.now() - 1000 },
-                { id: 2, status: 'pending', resolvedActions: ['b'], gatilhoTime: Date.now() + 1000 },
-                { id: 3, status: 'completed', resolvedActions: ['c'], gatilhoTime: Date.now() - 2000 },
-            ],
-        });
-        state.setSchedules([schedule]);
-
-        const statuses = schedule.executionOrder.map(i => i.status);
-        expect(statuses).toEqual(['pending', 'pending', 'completed']);
-    });
-
-    it('nao altera o status de instancias nao interrompidas ao carregar', () => {
-        const state = new SchedulerState();
-        const schedule = makeSchedule('s1', 'f1', {
-            executionOrder: [
-                { id: 1, status: 'completed', resolvedActions: ['a'], gatilhoTime: Date.now() - 1000 },
-                { id: 2, status: 'pending', resolvedActions: ['b'], gatilhoTime: Date.now() + 1000 },
-            ],
-        });
-        state.setSchedules([schedule]);
-
-        const statuses = schedule.executionOrder.map(i => i.status);
-        expect(statuses).toEqual(['completed', 'pending']);
     });
 });

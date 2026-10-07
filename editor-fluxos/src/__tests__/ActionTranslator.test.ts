@@ -87,20 +87,20 @@ describe('resolveAction', () => {
 
     it('resolves unknown key as text', () => {
         const result = resolveAction('hello');
-        expect(result.kind).toBe('key');
+        expect(result.kind).toBe('text');
         expect(result.text).toBe('hello');
         expect(result.nutKey).toBeUndefined();
     });
 
     it('resolves single character as text', () => {
         const result = resolveAction('a');
-        expect(result.kind).toBe('key');
+        expect(result.kind).toBe('text');
         expect(result.text).toBe('a');
     });
 
     it('resolves ITEM_OBRIGATORIO as text', () => {
         const result = resolveAction('ITEM_OBRIGATORIO');
-        expect(result.kind).toBe('key');
+        expect(result.kind).toBe('text');
         expect(result.text).toBe('ITEM_OBRIGATORIO');
     });
 });

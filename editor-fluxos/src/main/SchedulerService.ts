@@ -4,11 +4,14 @@ import * as fs from 'fs';
 import { app } from 'electron';
 import { IpcChannels } from '../shared/IpcChannels';
 import { SchedulerState } from './SchedulerState';
+import { InstanceStatus } from '../domain/types';
 
 export class SchedulerService {
     private _state: SchedulerState;
     private _interval: ReturnType<typeof setInterval> | null = null;
     private _file: string;
+    private _windowProvider: (() => BrowserWindow | null) | null = null;
+    private _startedAt: number = 0;
 
     constructor() {
         this._file = path.join(app.getPath('userData'), 'schedules.json');
@@ -21,9 +24,9 @@ export class SchedulerService {
     private _load(): void {
         try {
             if (fs.existsSync(this._file)) {
-                this._state.setSchedules(JSON.parse(fs.readFileSync(this._file, 'utf-8')));
+                this._state.initialize(JSON.parse(fs.readFileSync(this._file, 'utf-8')));
             }
-        } catch { this._state.setSchedules([]); }
+        } catch { this._state.initialize([]); }
     }
 
     private _save(): void {
@@ -31,18 +34,24 @@ export class SchedulerService {
     }
 
     setSchedules(data: any[]): void {
-        this._state.setSchedules(data);
+        this._state.replaceSchedules(data);
         this._save();
+        this._notifyStatusChanged();
     }
 
-    updateInstanceStatus(scheduleId: string, instanceId: number, status: string): void {
+    updateInstanceStatus(scheduleId: string, instanceId: number, status: InstanceStatus): void {
         if (this._state.updateInstanceStatus(scheduleId, instanceId, status)) {
             this._save();
+            this._notifyStatusChanged();
         }
     }
 
     start(windowProvider: () => BrowserWindow | null): void {
         if (this._interval) return;
+        this._windowProvider = windowProvider;
+        this._startedAt = Date.now();
+        this._state.markMissedBefore(this._startedAt);
+        this._save();
         this._interval = setInterval(() => {
             const due = this._state.getDueInstances(Date.now());
             for (const d of due) {
@@ -64,6 +73,13 @@ export class SchedulerService {
         if (this._interval) {
             clearInterval(this._interval);
             this._interval = null;
+        }
+    }
+
+    private _notifyStatusChanged(): void {
+        const win = this._windowProvider?.();
+        if (win && !win.isDestroyed()) {
+            win.webContents.send(IpcChannels.SCHEDULE_STATUS_CHANGED, this._state.schedules);
         }
     }
 }

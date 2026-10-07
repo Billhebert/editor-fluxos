@@ -40,4 +40,16 @@ describe('FlowSanitizer', () => {
         const result = FlowSanitizer.sanitizeFluxos(fluxos, ['42']);
         expect(result.f).toEqual([42, true, 'enter']);
     });
+
+    it('preserves structured image actions', () => {
+        const fluxos = { f: [{ type: 'click-image', assetId: 'btn' }] };
+        const result = FlowSanitizer.sanitizeFluxos(fluxos, []);
+        expect(result.f).toEqual([{ type: 'click-image', assetId: 'btn' }]);
+    });
+
+    it('sanitizes nested if-image branches', () => {
+        const fluxos = { f: [{ type: 'if-image', assetId: 'btn', then: ['v1', 'v1'], else: ['v2'] }] };
+        const result = FlowSanitizer.sanitizeFluxos(fluxos, ['v1', 'v2']);
+        expect(result.f).toEqual([{ type: 'if-image', assetId: 'btn', then: ['v1'], else: ['v2'] }]);
+    });
 });

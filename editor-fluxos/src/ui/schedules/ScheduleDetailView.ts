@@ -66,6 +66,8 @@ export class ScheduleDetailView {
                 <span style="color:${STATUS_COLORS.failed};">❌ ${stats.failed} falharam</span>
                 <span style="color:${STATUS_COLORS.pending};">⏳ ${stats.pending} pendentes</span>
                 <span style="color:${STATUS_COLORS.running};">▶ ${stats.running} rodando</span>
+                <span style="color:${STATUS_COLORS.missed};">⏭ ${stats.missed} perdidos</span>
+                <span style="color:${STATUS_COLORS.cancelled};">🚫 ${stats.cancelled} cancelados</span>
             </div>`;
 
         if (conflictSet.size > 0) {
@@ -106,12 +108,14 @@ export class ScheduleDetailView {
         container.innerHTML = html;
     }
 
-    private _getStats(order: ExecutionInstance[]): { completed: number; failed: number; pending: number; running: number } {
+    private _getStats(order: ExecutionInstance[]): { completed: number; failed: number; pending: number; running: number; missed: number; cancelled: number } {
         return {
             completed: order.filter(i => i.status === 'completed').length,
             failed: order.filter(i => i.status === 'failed').length,
             pending: order.filter(i => i.status === 'pending').length,
             running: order.filter(i => i.status === 'running').length,
+            missed: order.filter(i => i.status === 'missed').length,
+            cancelled: order.filter(i => i.status === 'cancelled').length,
         };
     }
 }

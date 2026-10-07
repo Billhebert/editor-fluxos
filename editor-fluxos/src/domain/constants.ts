@@ -11,12 +11,16 @@ export const STATUS_COLORS: Record<string, string> = {
     completed: '#00b894',
     failed: '#e17055',
     running: '#74b9ff',
-    pending: '#fdcb6e'
+    pending: '#fdcb6e',
+    missed: '#636e72',
+    cancelled: '#b2bec3'
 };
 
 export const STATUS_LABELS: Record<string, string> = {
     completed: '✅ Concluido',
     failed: '❌ Falhou',
     running: '▶ Rodando',
-    pending: '⏳ Pendente'
+    pending: '⏳ Pendente',
+    missed: '⏭ Perdido',
+    cancelled: '🚫 Cancelado'
 };

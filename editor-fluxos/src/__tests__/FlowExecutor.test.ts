@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { FlowExecutor, ActionError } from '../use-cases/FlowExecutor';
+import { FlowExecutor, ActionError, TimingPolicy } from '../use-cases/FlowExecutor';
 import { Flow } from '../domain/Flow';
 import { VariablePool } from '../domain/VariablePool';
 import { IActionExecutor } from '../adapters/IActionExecutor';
@@ -10,13 +10,25 @@ function createMockExecutor(): IActionExecutor {
     };
 }
 
+function createNoOpTimingPolicy(): TimingPolicy {
+    return {
+        waitForInteractionGap: vi.fn(async () => {}),
+        waitForFlowGap: vi.fn(async () => {}),
+        markInteraction: vi.fn(),
+        markFlowStarted: vi.fn(),
+        markFlowFinished: vi.fn(),
+    };
+}
+
 describe('FlowExecutor', () => {
     let executor: IActionExecutor;
+    let timingPolicy: TimingPolicy;
     let flowExecutor: FlowExecutor;
 
     beforeEach(() => {
         executor = createMockExecutor();
-        flowExecutor = new FlowExecutor(executor);
+        timingPolicy = createNoOpTimingPolicy();
+        flowExecutor = new FlowExecutor(executor, timingPolicy);
     });
 
     it('executes all actions in a flow', async () => {
@@ -24,6 +36,8 @@ describe('FlowExecutor', () => {
         const pool = new VariablePool();
         await flowExecutor.execute(flow, pool);
         expect(executor.execute).toHaveBeenCalledTimes(3);
+        expect(timingPolicy.markFlowStarted).toHaveBeenCalled();
+        expect(timingPolicy.markFlowFinished).toHaveBeenCalled();
     });
 
     it('calls onActionStart and onActionEnd callbacks', async () => {
@@ -101,12 +115,28 @@ describe('FlowExecutor', () => {
         const pool = new VariablePool();
         pool.addObrigatorio('item', 'resolved_value');
         await flowExecutor.execute(flow, pool);
-        expect(executor.execute).toHaveBeenCalledWith('resolved_value');
-        expect(executor.execute).toHaveBeenCalledWith('click');
+        expect(executor.execute).toHaveBeenCalledWith('resolved_value', expect.any(AbortSignal));
+        expect(executor.execute).toHaveBeenCalledWith('click', expect.any(AbortSignal));
     });
 
     it('executeActions works without Flow wrapper', async () => {
         await flowExecutor.executeActions(['x', 'y']);
         expect(executor.execute).toHaveBeenCalledTimes(2);
+    });
+
+    it('waits for interaction gap before each action', async () => {
+        await flowExecutor.executeActions(['x', 'y']);
+        expect(timingPolicy.waitForInteractionGap).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops when timing policy throws AbortError', async () => {
+        const policy: TimingPolicy = {
+            ...createNoOpTimingPolicy(),
+            waitForInteractionGap: vi.fn().mockRejectedValueOnce(new DOMException('Aborted', 'AbortError')),
+        };
+        const executor = createMockExecutor();
+        const executorInstance = new FlowExecutor(executor, policy);
+        await executorInstance.executeActions(['x', 'y', 'z']);
+        expect(executor.execute).not.toHaveBeenCalled();
     });
 });

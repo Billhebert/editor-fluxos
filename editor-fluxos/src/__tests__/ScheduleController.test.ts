@@ -43,6 +43,7 @@ function createMockCtx(overrides: Partial<ScheduleContext> = {}): ScheduleContex
         } as unknown as ScheduleManager,
         loadSchedules: vi.fn().mockResolvedValue([]),
         saveSchedules: vi.fn().mockResolvedValue(undefined),
+        onScheduleStatusChanged: vi.fn(),
         ...overrides,
     };
 }
@@ -91,7 +92,7 @@ describe('ScheduleController', () => {
         expect(newView.show).toHaveBeenCalled();
     });
 
-    it('avisa com warning quando a configuracao nao cabe na janela', async () => {
+    it('rejeita quando a configuracao nao cabe na janela', async () => {
         await ctrl.openSchedules();
 
         const listView = (ctrl as any)._listView;
@@ -100,10 +101,9 @@ describe('ScheduleController', () => {
         const newView = (ctrl as any)._newView;
         const newCallbacks = newView.show.mock.calls[0][2];
 
-        newCallbacks.generateOrder(['enter'], '', 15, '2026-09-09', '11:00', '21:40', 3600, null, null);
-
-        const { Toast } = await import('../ui/Toast');
-        expect(Toast.warning).toHaveBeenCalledWith(expect.stringContaining('nao cabe'));
+        expect(() =>
+            newCallbacks.generateOrder(['enter'], '', 15, '2026-09-09', '11:00', '21:40', 3600, null, null)
+        ).toThrow('nao cabe');
     });
 
     it('nao avisa quando a configuracao cabe na janela', async () => {
@@ -240,7 +240,7 @@ describe('ScheduleController', () => {
 
             await callbacks.onToggle(scheduleA.id, true);
 
-            expect(fake.conflictCountInSet).toHaveBeenCalledWith(scheduleA, [scheduleA, scheduleB]);
+            expect(fake.conflictCountInSet).toHaveBeenCalledWith(scheduleA, [scheduleA, scheduleB], 300000);
             expect(scheduleA.active).toBe(true);
 
             const { Toast } = await import('../ui/Toast');

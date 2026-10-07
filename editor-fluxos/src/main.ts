@@ -7,6 +7,8 @@ import { FileIpcHandler } from './main/FileIpcHandler';
 import { ScheduleIpcHandler } from './main/ScheduleIpcHandler';
 import { UpdateService } from './main/UpdateService';
 import { NodeFileSystem } from './infrastructure/NodeFileSystem';
+import { ImageIpcHandler } from './main/ImageIpcHandler';
+import { NutImageRecognizer } from './main/NutImageRecognizer';
 
 let mainWindow: BrowserWindow | null = null;
 const windowProvider = () => mainWindow;
@@ -51,6 +53,7 @@ app.whenReady().then(() => {
     new ActionIpcHandler().register();
     new CaptureIpcHandler().register(windowProvider);
     new ScheduleIpcHandler(scheduler).register();
+    new ImageIpcHandler(new NutImageRecognizer()).register();
     new UpdateService().init(windowProvider);
 });
 

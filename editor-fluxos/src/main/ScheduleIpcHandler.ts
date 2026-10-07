@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { SchedulerService } from './SchedulerService';
 import { IpcChannels } from '../shared/IpcChannels';
+import { InstanceStatus } from '../domain/types';
 
 export class ScheduleIpcHandler {
     private _scheduler: SchedulerService;
@@ -17,7 +18,7 @@ export class ScheduleIpcHandler {
             return true;
         });
 
-        ipcMain.handle(IpcChannels.UPDATE_INSTANCE_STATUS, (_event, { scheduleId, instanceId, status }: { scheduleId: string; instanceId: number; status: string }) => {
+        ipcMain.handle(IpcChannels.UPDATE_INSTANCE_STATUS, (_event, { scheduleId, instanceId, status }: { scheduleId: string; instanceId: number; status: InstanceStatus }) => {
             this._scheduler.updateInstanceStatus(scheduleId, instanceId, status);
             return true;
         });
