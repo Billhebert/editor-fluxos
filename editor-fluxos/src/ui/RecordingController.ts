@@ -196,8 +196,22 @@ export class RecordingController {
     private _openBranchEditor(action: IfImageAction): void {
         import('./BranchEditor').then(({ BranchEditor }) => {
             new BranchEditor(action, {
-                onChange: () => this._renderQueue(),
-                get imageAssets() { return this._ctx.imageAssets; }
+                onChange: () => this._renderQueue()
+            }).open();
+        });
+    }
+
+    private _editQueueAction(index: number): void {
+        const action = this._recordingQueue[index];
+        if (!action || typeof action !== 'object' || !('type' in action)) return;
+        if (action.type === 'if-image') {
+            this._openBranchEditor(action as IfImageAction);
+            return;
+        }
+        import('./ActionEditor').then(({ ActionEditor }) => {
+            new ActionEditor(action, (updated) => {
+                this._recordingQueue[index] = updated;
+                this._renderQueue();
             }).open();
         });
     }
@@ -223,10 +237,17 @@ export class RecordingController {
                 el = document.createElement('div');
                 el.className = 'action-item';
                 el.textContent = getActionLabel(item);
+                const editBtn = document.createElement('button');
+                editBtn.className = 'action-edit';
+                editBtn.textContent = '✎';
+                editBtn.addEventListener('click', () => this._editQueueAction(i));
+
                 const btn = document.createElement('button');
                 btn.className = 'action-remove';
                 btn.textContent = '✕';
                 btn.addEventListener('click', () => this.removeFromQueue(parseInt(btn.dataset.index || '0', 10)));
+
+                el.appendChild(editBtn);
                 el.appendChild(btn);
                 list.appendChild(el);
             }

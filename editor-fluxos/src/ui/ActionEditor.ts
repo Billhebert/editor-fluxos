@@ -34,6 +34,18 @@ export class ActionEditor {
 
         overlay.querySelector('.btn-cancel')!.addEventListener('click', () => this._destroy());
         overlay.querySelector('.btn-save')!.addEventListener('click', () => this._save());
+
+        const editBranchesBtn = overlay.querySelector('#editBranches') as HTMLButtonElement | null;
+        if (editBranchesBtn) {
+            editBranchesBtn.addEventListener('click', () => {
+                import('./BranchEditor').then(({ BranchEditor }) => {
+                    new BranchEditor(this._action as any, {
+                        onChange: () => { /* mutacao in-place sera salva ao clicar Salvar */ },
+                        onSave: () => { /* mutacao in-place */ }
+                    }).open();
+                });
+            });
+        }
     }
 
     private _buildForm(): string {
@@ -72,7 +84,8 @@ export class ActionEditor {
                 <label style="display:block; margin-bottom:8px; color:#aaa; font-size:13px;">Confianca
                     <input type="number" id="editConfidence" value="${a.confidence ?? 0.8}" min="0.1" max="1" step="0.05" style="width:100%; margin-top:6px;" /></label>
                 <label style="display:block; margin-bottom:8px; color:#aaa; font-size:13px;">Timeout (ms)
-                    <input type="number" id="editTimeout" value="${a.timeout ?? 5000}" min="0" step="500" style="width:100%; margin-top:6px;" /></label>`;
+                    <input type="number" id="editTimeout" value="${a.timeout ?? 5000}" min="0" step="500" style="width:100%; margin-top:6px;" /></label>
+                <button class="btn btn-primary btn-sm" id="editBranches" style="margin-top:8px;">🔀 Editar Ramos</button>`;
             default:
                 return `<p>Tipo nao suportado para edicao.</p>`;
         }
