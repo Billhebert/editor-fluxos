@@ -185,6 +185,33 @@ export class FlowManager {
         });
     }
 
+    async updateAction(flowName: string, index: number, rawAction: RawAction): Promise<void> {
+        const flow = await this._repo.findByName(flowName);
+        if (!flow) throw new NotFoundError('Flow', flowName);
+        const previous = flow.actions[index];
+        if (previous === undefined) {
+            throw new ValidationError('Flow.actionIndex', `index ${index} out of range [0, ${flow.length})`);
+        }
+
+        const action = Action.parse(rawAction);
+        const raw = action.toRaw();
+
+        await this._executeWithUndo({
+            type: 'flow:action:update',
+            description: `Update action in "${flowName}"`,
+            do: async () => {
+                const f = await this._repo.findByName(flowName);
+                if (f) { f.replaceAction(index, raw); await this._repo.save(f); }
+            },
+            undo: async () => {
+                const f = await this._repo.findByName(flowName);
+                if (f) { f.replaceAction(index, previous); await this._repo.save(f); }
+            },
+            event: Events.FLOW_UPDATED,
+            payload: { flowName, index }
+        });
+    }
+
     async saveAllFlows(flows: Flow[]): Promise<void> {
         return this._repo.saveAll(flows);
     }

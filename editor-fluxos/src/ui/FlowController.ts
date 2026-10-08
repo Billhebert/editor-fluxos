@@ -2,6 +2,7 @@ import { RawAction } from '../domain';
 import { FlowManager } from '../use-cases/FlowManager';
 import { Toast } from './Toast';
 import { modalPrompt } from './modals/modalPrompt';
+import { ActionEditor } from './ActionEditor';
 
 export interface FlowControllerContext {
     flowManager: FlowManager;
@@ -71,8 +72,14 @@ export class FlowController {
     }
 
     async editAction(flowName: string, index: number): Promise<void> {
-        // TODO: abrir editor especifico por tipo de acao
-        alert(`Editar acao ${index} do fluxo ${flowName} (em desenvolvimento)`);
+        const flow = await this._ctx.flowManager.getFlow(flowName);
+        if (!flow) return;
+        const action = flow.actions[index];
+        if (action === undefined) return;
+        new ActionEditor(action, async (updated) => {
+            await this._ctx.flowManager.updateAction(flowName, index, updated);
+            await this._ctx.renderAll();
+        }).open();
     }
 
     renderAllCallbacks() {

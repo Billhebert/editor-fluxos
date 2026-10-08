@@ -46,20 +46,38 @@ export class CaptureRegionService {
     }
 
     private async _captureNative(region: CaptureRegion): Promise<string> {
-        const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } });
-        const primary = sources[0];
-        if (!primary) throw new Error('No screen source found');
-
-        const display = screen.getPrimaryDisplay();
+        const display = screen.getDisplayNearestPoint({ x: Math.round(region.x), y: Math.round(region.y) });
         const scaleFactor = display.scaleFactor || 1;
-
-        const nativeImg = await (BrowserWindow as any).capturePage({
-            x: Math.round(region.x * scaleFactor),
-            y: Math.round(region.y * scaleFactor),
-            width: Math.round(region.width * scaleFactor),
-            height: Math.round(region.height * scaleFactor),
+        const sources = await desktopCapturer.getSources({
+            types: ['screen'],
+            thumbnailSize: { width: Math.round(display.size.width * scaleFactor), height: Math.round(display.size.height * scaleFactor) }
         });
 
+        const primary = sources.find(s => s.display_id === String(display.id)) || sources[0];
+        if (!primary || !primary.thumbnail) {
+            throw new Error('No screen source found');
+        }
+
+        const full = primary.thumbnail.toBitmap();
+        const fullWidth = Math.round(primary.thumbnail.getSize().width);
+        const sx = Math.max(0, Math.round(region.x * scaleFactor));
+        const sy = Math.max(0, Math.round(region.y * scaleFactor));
+        const sw = Math.min(Math.round(region.width * scaleFactor), fullWidth - sx);
+        const sh = Math.min(Math.round(region.height * scaleFactor), Math.round(primary.thumbnail.getSize().height) - sy);
+
+        const crop = this._cropBitmap(full, fullWidth, sx, sy, sw, sh);
+        const nativeImg = require('electron').nativeImage.createFromBuffer(crop, { width: sw, height: sh });
         return nativeImg.toPNG().toString('base64');
+    }
+
+    private _cropBitmap(buffer: Buffer, fullWidth: number, sx: number, sy: number, sw: number, sh: number): Buffer {
+        const bpp = 4;
+        const out = Buffer.alloc(sw * sh * bpp);
+        for (let y = 0; y < sh; y++) {
+            const srcOffset = ((sy + y) * fullWidth + sx) * bpp;
+            const dstOffset = y * sw * bpp;
+            buffer.copy(out, dstOffset, srcOffset, srcOffset + sw * bpp);
+        }
+        return out;
     }
 }

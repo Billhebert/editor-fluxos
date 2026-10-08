@@ -81,6 +81,7 @@ export class App {
             renderAll: () => this._renderAll(),
             saveToStorage: () => this._varManager.saveToStorage(),
             fileDialog: new NodeIpcFileDialog(),
+            imageAssets: new ImageAssetManager(),
         });
 
             this._execCtrl = new ExecutionController({

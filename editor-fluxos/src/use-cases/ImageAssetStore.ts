@@ -24,14 +24,6 @@ export class ImageAssetStore {
         this._assets.delete(assetId);
     }
 
-    collectFromActions(actions: RawAction[]): void {
-        for (const a of actions) {
-            if (this._isImageAction(a)) {
-                // noop: assets already embedded or loaded separately
-            }
-        }
-    }
-
     toJSON(): Record<string, string> {
         const out: Record<string, string> = {};
         this._assets.forEach((asset, id) => out[id] = asset.base64);
@@ -43,6 +35,23 @@ export class ImageAssetStore {
         for (const id of Object.keys(data)) {
             this._assets.set(id, { assetId: id, base64: data[id] });
         }
+    }
+
+    collectFromActions(actions: RawAction[]): string[] {
+        const ids: string[] = [];
+        const walk = (list: RawAction[]) => {
+            for (const a of list) {
+                if (this._isImageAction(a)) {
+                    ids.push(a.assetId);
+                    if (a.type === 'if-image') {
+                        walk(a.then);
+                        walk(a.else);
+                    }
+                }
+            }
+        };
+        walk(actions);
+        return ids;
     }
 
     private _isImageAction(a: RawAction): a is ClickImageAction | IfImageAction {
