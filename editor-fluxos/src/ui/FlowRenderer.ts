@@ -9,6 +9,7 @@ export interface FlowRendererCallbacks {
     onRename?: (oldName: string, newName: string) => void;
     onRemoveAction?: (flowName: string, index: number) => void;
     onMoveAction?: (flowName: string, fromIndex: number, toIndex: number) => void;
+    onEditAction?: (flowName: string, index: number) => void;
 }
 
 export class FlowRenderer {
@@ -176,6 +177,16 @@ export class FlowRenderer {
             e.stopPropagation();
             if (callbacks.onRemoveAction) callbacks.onRemoveAction(fluxoName, index);
         });
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'action-edit';
+        editBtn.textContent = '✎';
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (callbacks.onEditAction) callbacks.onEditAction(fluxoName, index);
+        });
+
+        el.appendChild(editBtn);
         el.appendChild(removeBtn);
 
         el.addEventListener('dragstart', (e) => {
@@ -198,9 +209,13 @@ export class FlowRenderer {
             list.classList.remove('drag-over');
             const fromIndex = parseInt(e.dataTransfer!.getData('text/plain'));
             const afterElement = getDragAfterElement(list, e.clientY);
-            const toIndex = afterElement
-                ? parseInt(afterElement.dataset.index || '0')
-                : list.children.length;
+            let toIndex: number;
+            if (afterElement) {
+                toIndex = parseInt(afterElement.dataset.index || '0');
+                if (toIndex > fromIndex) toIndex--;
+            } else {
+                toIndex = list.children.length - 1;
+            }
             if (fromIndex !== toIndex && callbacks.onMoveAction) {
                 callbacks.onMoveAction(list.dataset.fluxo!, fromIndex, toIndex);
             }

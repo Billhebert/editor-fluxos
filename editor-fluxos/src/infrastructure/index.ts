@@ -8,3 +8,4 @@ export { UndoManager, type UndoableAction } from './UndoManager';
 export { ipc } from './IpcService';
 export { NodeFileSystem } from './NodeFileSystem';
 export { NodeIpcFileDialog } from './NodeIpcFileDialog';
+export { ImageAssetManager } from './ImageAssetManager';

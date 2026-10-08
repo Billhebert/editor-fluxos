@@ -606,7 +606,7 @@ describe('FLUXO E2E', () => {
             }, saveFile, { timeout: 10000 });
 
             const content = JSON.parse(fs.readFileSync(saveFile, 'utf-8'));
-            expect(Object.keys(content)).toContain('from_file');
+            expect(Object.keys(content.fluxos || {})).toContain('from_file');
         });
 
         it('salvar (sem dialogo) reescreve no caminho atual', async () => {

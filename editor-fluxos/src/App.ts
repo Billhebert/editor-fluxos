@@ -1,6 +1,6 @@
 import { Flow, RawAction } from './domain';
 import { FlowExecutor, ScheduleManager, FlowManager, FlowSanitizer, ScheduleConflictService, ExecutionTimingPolicy } from './use-cases';
-import { LocalStorageFlowRepo, ElectronIpcExecutor, UndoManager, IpcScheduleRepo, eventBus, NodeIpcFileDialog, ElectronImageRecognizer } from './infrastructure';
+import { LocalStorageFlowRepo, ElectronIpcExecutor, UndoManager, IpcScheduleRepo, eventBus, NodeIpcFileDialog, ElectronImageRecognizer, ImageAssetManager } from './infrastructure';
 import { ipc } from './infrastructure/IpcService';
 import { FlowRenderer, Toast, RecordingController, ScheduleController, VariableConfigController } from './ui';
 import { ConfigModal } from './ui/config/ConfigModal';
@@ -54,7 +54,8 @@ export class App {
             },
             renderAll: () => { this._renderAll(); },
             registerCapture: (shortcut) => ipc.registerCaptureShortcut(shortcut),
-            unregisterCapture: () => ipc.unregisterCaptureShortcut()
+            unregisterCapture: () => ipc.unregisterCaptureShortcut(),
+            imageAssets: new ImageAssetManager()
         });
 
         this._varManager = new VariableManager({
@@ -75,19 +76,21 @@ export class App {
             flowManager: this._flowManager,
             fluxosCache: this._fluxosCache,
             variables: this._varManager.variables,
+            varConfig: this._varManager.varConfig.toJSON(),
             refreshCache: () => this._refreshCache(),
             renderAll: () => this._renderAll(),
             saveToStorage: () => this._varManager.saveToStorage(),
             fileDialog: new NodeIpcFileDialog(),
         });
 
-        this._execCtrl = new ExecutionController({
+            this._execCtrl = new ExecutionController({
             flowExecutor: this._flowExecutor,
             varConfig: this._varManager.varConfig,
             statusSink: {
-                updateInstanceStatus: (scheduleId, instanceId, status) => ipc.updateInstanceStatus(scheduleId, instanceId, status),
+                updateInstanceStatus: async (scheduleId, instanceId, status) => ipc.updateInstanceStatus(scheduleId, instanceId, status),
             },
         }, this._flowRenderer);
+        this._execCtrl.setGlobalButtonState();
 
         this._scheduleCtrl = new ScheduleController({
             getFluxos: () => this._fluxosCache,
@@ -209,7 +212,10 @@ export class App {
                     this._scheduleCtrl.refreshConfig();
                 }),
                 'open-schedules': () => this._scheduleCtrl.openSchedules(),
-                'stop-execution': () => this._execCtrl.stop(),
+                'toggle-global-execution': () => {
+                    if (this._execCtrl.isRunning || this._execCtrl.isStopping) this._execCtrl.stop();
+                    else this._execCtrl.start();
+                },
                 'close-recording': () => this._recording.close(),
                 'toggle-key-recording': () => this._recording.toggleKeyRecording(),
                 'toggle-global-capture': () => this._recording.toggleGlobalCapture(),
@@ -219,6 +225,17 @@ export class App {
                 'add-text-action': () => this._recording.addTextAction(),
                 'add-click-image-action': () => this._recording.addClickImageAction(),
                 'add-if-image-action': () => this._recording.addIfImageAction(),
+                'capture-image': () => this._recording.captureRegion(),
+                'import-image': () => {
+                    const input = document.getElementById('imageFileInput') as HTMLInputElement;
+                    if (!input) return;
+                    input.onchange = async (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) await this._recording.importImage(file);
+                        input.value = '';
+                    };
+                    input.click();
+                },
                 'add-queue-to-fluxo': () => this._recording.addQueueToFluxo(),
                 'clear-queue': () => this._recording.clearQueue(),
                 'add-new-fluxo': () => this._flowCtrl.addNew(),

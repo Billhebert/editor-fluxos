@@ -13,5 +13,5 @@ export interface ImageSearchOptions {
 }
 
 export interface IImageRecognizer {
-    findImage(options: ImageSearchOptions): Promise<ImageMatch | null>;
+    findImage(options: ImageSearchOptions, signal?: AbortSignal): Promise<ImageMatch | null>;
 }

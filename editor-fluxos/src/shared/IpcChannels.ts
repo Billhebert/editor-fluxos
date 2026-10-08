@@ -10,6 +10,10 @@ export const IpcChannels = {
     EXECUTE_ACTION: 'execute-action',
     STOP_EXECUTION: 'stop-execution',
     FIND_IMAGE: 'find-image',
+    CAPTURE_REGION: 'capture-region',
+    IMPORT_IMAGE: 'import-image',
+    SAVE_IMAGE_ASSET: 'save-image-asset',
+    GET_IMAGE_ASSETS: 'get-image-assets',
     // Mouse capture
     REGISTER_CAPTURE: 'register-capture-shortcut',
     UNREGISTER_CAPTURE: 'unregister-capture-shortcut',

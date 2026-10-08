@@ -9,6 +9,8 @@ import { UpdateService } from './main/UpdateService';
 import { NodeFileSystem } from './infrastructure/NodeFileSystem';
 import { ImageIpcHandler } from './main/ImageIpcHandler';
 import { NutImageRecognizer } from './main/NutImageRecognizer';
+import { ImageAssetService } from './main/ImageAssetService';
+import { CaptureRegionService } from './main/CaptureRegionService';
 
 let mainWindow: BrowserWindow | null = null;
 const windowProvider = () => mainWindow;
@@ -53,7 +55,9 @@ app.whenReady().then(() => {
     new ActionIpcHandler().register();
     new CaptureIpcHandler().register(windowProvider);
     new ScheduleIpcHandler(scheduler).register();
-    new ImageIpcHandler(new NutImageRecognizer()).register();
+    const assetService = new ImageAssetService();
+    new ImageIpcHandler(new NutImageRecognizer(assetService.getAssetPath('dummy').replace(/\\dummy\.png$/, ''))).register();
+    new CaptureRegionService(assetService).register(windowProvider);
     new UpdateService().init(windowProvider);
 });
 

@@ -8,9 +8,9 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
-        .header { background: #1a1a2e; border-bottom: 1px solid #333; padding: 16px 24px; display: flex; align-items: center; gap: 16px; -webkit-app-region: drag; }
-        .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
-        .header-actions { margin-left: auto; display: flex; gap: 8px; -webkit-app-region: no-drag; flex-wrap: wrap; }
+        .header { background: #1a1a2e; border-bottom: 1px solid #333; padding: 12px 16px; display: flex; align-items: center; gap: 12px; -webkit-app-region: drag; flex-wrap: wrap; }
+        .header h1 { font-size: 18px; font-weight: 600; color: #fff; }
+        .header-actions { margin-left: auto; display: flex; gap: 6px; -webkit-app-region: no-drag; flex-wrap: wrap; align-items: center; }
         .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
         .btn-primary { background: #6c5ce7; color: #fff; }
         .btn-primary:hover { background: #5a4bd1; }
@@ -27,8 +27,8 @@
         .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
         .fluxos-grid { display: flex; flex-direction: column; gap: 16px; }
         .fluxo-card { background: #1a1a2e; border: 1px solid #333; border-radius: 10px; overflow: hidden; }
-        .fluxo-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #16162a; border-bottom: 1px solid #333; }
-        .fluxo-header input { background: transparent; border: none; color: #a29bfe; font-size: 16px; font-weight: 600; font-family: 'Consolas', monospace; flex: 1; }
+        .fluxo-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #16162a; border-bottom: 1px solid #333; flex-wrap: wrap; }
+        .fluxo-header input { background: transparent; border: none; color: #a29bfe; font-size: 15px; font-weight: 600; font-family: 'Consolas', monospace; flex: 1; min-width: 120px; }
         .fluxo-header input:focus { outline: none; }
         .fluxo-header .fluxo-label { color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
         .fluxo-body { padding: 12px; }
@@ -36,8 +36,9 @@
         .action-list:empty::before { content: 'Clique em Gravar para adicionar acoes', color: #555; font-size: 13px; }
         .action-item { display: flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 13px; cursor: grab; position: relative; user-select: none; }
         .action-item:active { cursor: grabbing; }
-        .action-item .action-remove { opacity: 0; cursor: pointer; color: #e74c3c; font-weight: bold; margin-left: 4px; transition: opacity 0.1s; background: none; border: none; font-size: 12px; }
-        .action-item:hover .action-remove { opacity: 1; }
+        .action-item .action-remove, .action-item .action-edit { opacity: 0; cursor: pointer; color: #e74c3c; font-weight: bold; margin-left: 4px; transition: opacity 0.1s; background: none; border: none; font-size: 12px; }
+        .action-item .action-edit { color: #74b9ff; }
+        .action-item:hover .action-remove, .action-item:hover .action-edit { opacity: 1; }
         .action-key { background: #1f3d2d; border: 1px solid #00b894; color: #55efc4; }
         .action-text { background: #3d2d1f; border: 1px solid #e17055; color: #fab1a0; }
         .action-delay { background: #1f2d3d; border: 1px solid #74b9ff; color: #74b9ff; }
@@ -146,20 +147,20 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>FLUXO</h1>
-        <span id="versionLabel" class="version-label"></span>
-        <span class="file-info" id="fileInfo"></span>
-        <span id="updateBadge" class="update-badge"></span>
-        <div class="header-actions">
-            <button class="btn btn-outline btn-sm" data-action="open-file">📂 Abrir</button>
-            <button class="btn btn-success btn-sm" data-action="save-file">💾 Salvar</button>
-            <button class="btn btn-outline btn-sm" data-action="save-file-as">💾 Salvar Como</button>
-            <span style="color:#444">|</span>
-            <button class="btn btn-outline btn-sm" data-action="open-config">⚙ Config</button>
-            <button class="btn btn-warning btn-sm" data-action="open-var-config">⚙ Config Variaveis</button>
-            <button class="btn btn-primary btn-sm" data-action="open-schedules">📅 Agendamentos</button>
-            <button class="btn btn-danger btn-sm" data-action="stop-execution">⏹ Parar</button>
+        <div class="header" role="banner">
+            <h1>FLUXO</h1>
+            <span id="versionLabel" class="version-label" aria-label="versao"></span>
+            <span class="file-info" id="fileInfo" aria-live="polite"></span>
+            <span id="updateBadge" class="update-badge"></span>
+            <div class="header-actions" role="toolbar" aria-label="Acoes principais">
+            <button class="btn btn-outline btn-sm" data-action="open-file" title="Abrir arquivo (Ctrl+O)">📂 Abrir</button>
+            <button class="btn btn-success btn-sm" data-action="save-file" title="Salvar arquivo (Ctrl+S)">💾 Salvar</button>
+            <button class="btn btn-outline btn-sm" data-action="save-file-as" title="Salvar arquivo como (Ctrl+Shift+S)">💾 Salvar Como</button>
+            <span style="color:#444" aria-hidden="true">|</span>
+            <button class="btn btn-outline btn-sm" data-action="open-config" title="Configuracao global">⚙ Config</button>
+            <button class="btn btn-warning btn-sm" data-action="open-var-config" title="Configurar variaveis">⚙ Config Variaveis</button>
+            <button class="btn btn-primary btn-sm" data-action="open-schedules" title="Abrir agendamentos">📅 Agendamentos</button>
+            <button class="btn btn-success btn-sm" data-action="toggle-global-execution" title="Iniciar ou parar execucao">▶ Iniciar</button>
         </div>
     </div>
 
@@ -237,14 +238,19 @@
                 </div>
 
                 <div class="recording-section" id="section-image">
-                    <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Use imagens-modelo salvas na pasta assets (PNG).</div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                        <input type="text" id="imageAssetId" placeholder="nome da imagem (sem .png)" style="flex:1; min-width:160px; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
-                        <input type="number" id="imageConfidence" value="0.8" min="0.1" max="1" step="0.05" title="Confianca" style="width:80px; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
-                        <input type="number" id="imageTimeout" value="5000" min="0" step="500" title="Timeout ms" style="width:90px; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
-                        <button class="btn btn-primary btn-sm" data-action="add-click-image-action">+ Clicar</button>
-                        <button class="btn btn-outline btn-sm" data-action="add-if-image-action">+ Se Imagem</button>
-                    </div>
+                <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Capture uma regiao da tela ou importe um PNG para usar como modelo.</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
+                    <button class="btn btn-primary btn-sm" id="captureImageBtn" data-action="capture-image">📷 Capturar Regiao</button>
+                    <button class="btn btn-outline btn-sm" data-action="import-image">📁 Importar PNG</button>
+                    <input type="file" id="imageFileInput" accept="image/png" style="display:none;" />
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <input type="text" id="imageAssetId" placeholder="nome da imagem" style="flex:1; min-width:160px; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
+                    <input type="number" id="imageConfidence" value="0.8" min="0.1" max="1" step="0.05" title="Confianca" style="width:80px; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
+                    <input type="number" id="imageTimeout" value="5000" min="0" step="500" title="Timeout ms" style="width:90px; background:#0f0f0f; border:1px solid #444; border-radius:4px; color:#fff; padding:6px 10px; font-size:13px;" />
+                    <button class="btn btn-primary btn-sm" data-action="add-click-image-action">+ Clicar</button>
+                    <button class="btn btn-outline btn-sm" data-action="add-if-image-action">+ Se Imagem</button>
+                </div>
                 </div>
 
                 <div>

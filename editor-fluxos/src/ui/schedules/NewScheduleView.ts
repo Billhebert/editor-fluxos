@@ -123,7 +123,7 @@ export class NewScheduleView {
                 </div>
 
                 <div id="modeRecurringFields" style="display:none;">
-                    <div class="section-title">Periodo de Atividade</div>
+                    <div class="section-title">Periodo de Atividade *</div>
                     <div class="config-row">
                         <div>
                             <label style="color:#888; font-size:12px;">Data Inicio</label>
@@ -133,10 +133,9 @@ export class NewScheduleView {
                             <label style="color:#888; font-size:12px;">Data Fim</label>
                             <input type="date" id="schDataFim" style="width:150px;" />
                         </div>
-                        <span style="color:#666; font-size:12px; align-self:flex-end;">(Opcional)</span>
                     </div>
 
-                    <div class="section-title">Dias</div>
+                    <div class="section-title">Dias da Semana *</div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         ${[1,2,3,4,5,6,0].map(d => `
                             <label style="display:flex; align-items:center; gap:4px; color:#aaa; font-size:13px;">
@@ -231,7 +230,8 @@ export class NewScheduleView {
                 timeStart = (document.getElementById('schTimeStart') as HTMLInputElement).value;
                 timeEnd = (document.getElementById('schTimeEnd') as HTMLInputElement).value;
             } else {
-                date = new Date().toISOString().split('T')[0];
+                const today = new Date();
+                date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
                 timeStart = (document.getElementById('schTimeStartR') as HTMLInputElement).value;
                 timeEnd = (document.getElementById('schTimeEndR') as HTMLInputElement).value;
                 dataInicio = (document.getElementById('schDataInicio') as HTMLInputElement).value || null;
@@ -241,14 +241,12 @@ export class NewScheduleView {
             if (!date || !timeStart || !timeEnd) { alert('Preencha todos os campos!'); return; }
             if (timeStart >= timeEnd) { alert('Horario de inicio deve ser antes do fim!'); return; }
 
-            if (dataInicio && dataFim && dataInicio > dataFim) {
-                alert('Data de inicio deve ser antes da data fim!');
-                return;
-            }
-
             let days: number[] = [];
             if (currentMode === 'recurring') {
+                if (!dataInicio || !dataFim) { alert('Informe a data de inicio e fim!'); return; }
+                if (dataInicio > dataFim) { alert('Data de inicio deve ser antes da data fim!'); return; }
                 days = [...overlay.querySelectorAll('.sch-day:checked')].map((c) => parseInt((c as HTMLInputElement).value));
+                if (days.length === 0) { alert('Selecione pelo menos um dia da semana!'); return; }
             }
 
             const pushOnConflict = (document.getElementById('schPush') as HTMLInputElement).checked;

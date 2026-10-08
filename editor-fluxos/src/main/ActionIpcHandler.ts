@@ -4,35 +4,60 @@ import { Point } from '@nut-tree-fork/shared';
 import { IpcChannels } from '../shared/IpcChannels';
 import { resolveAction } from './ActionTranslator';
 
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+interface AbortableTask {
+    reject(err: Error): void;
+    abort(): void;
+}
+
+class ActionAbortController {
+    private _active: AbortableTask | null = null;
+
+    set(task: AbortableTask): void {
+        this._active = task;
+    }
+
+    abort(): void {
+        const task = this._active;
+        this._active = null;
+        if (task) task.abort();
+    }
+}
+
+const globalAbort = new ActionAbortController();
+
+function sleep(ms: number): Promise<void> {
     return new Promise((resolve, reject) => {
-        if (signal?.aborted) {
-            reject(new DOMException('Aborted', 'AbortError'));
-            return;
-        }
         const timer = setTimeout(() => {
             cleanup();
             resolve();
         }, ms);
-        const onAbort = () => {
-            cleanup();
-            reject(new DOMException('Aborted', 'AbortError'));
+        const task: AbortableTask = {
+            reject,
+            abort: () => {
+                cleanup();
+                reject(new DOMException('Aborted', 'AbortError'));
+            }
         };
         const cleanup = () => {
             clearTimeout(timer);
-            signal?.removeEventListener('abort', onAbort);
+            globalAbort.set({
+                reject: () => {},
+                abort: () => {}
+            });
         };
-        signal?.addEventListener('abort', onAbort, { once: true });
+        globalAbort.set(task);
     });
 }
 
 export class ActionIpcHandler {
     register(): void {
+        ipcMain.handle(IpcChannels.STOP_EXECUTION, async () => {
+            globalAbort.abort();
+            return true;
+        });
+
         ipcMain.handle(IpcChannels.EXECUTE_ACTION, async (_event, action: any) => {
             try {
-                // O renderer nao pode passar um AbortSignal real via IPC.
-                // Quando precisar cancelar, a execucao sera abortada pelo executor
-                // no lado renderer atraves de outro mecanismo.
                 const resolved = resolveAction(action);
 
                 switch (resolved.kind) {
@@ -83,6 +108,10 @@ export class ActionIpcHandler {
                         // reservamos o tipo para consistencia.
                         break;
                 }
+                globalAbort.set({
+                    reject: () => {},
+                    abort: () => {}
+                });
                 return true;
             } catch (e: any) {
                 console.error('Erro na execucao:', e.message);

@@ -20,12 +20,18 @@ export interface TimingPolicy {
     markFlowFinished(): void;
 }
 
+export enum FlowExecutionState {
+    IDLE = 'idle',
+    RUNNING = 'running',
+    STOPPING = 'stopping',
+}
+
 export class FlowExecutor {
     private _executor: IActionExecutor;
     private _imageRecognizer: IImageRecognizer | null;
     private _resolverFactory: (pool: VariablePool) => VariableResolver;
     private _timingPolicy: TimingPolicy;
-    private _isRunning: boolean = false;
+    private _state: FlowExecutionState = FlowExecutionState.IDLE;
     private _abortController: AbortController | null = null;
 
     constructor(
@@ -40,7 +46,8 @@ export class FlowExecutor {
         this._resolverFactory = resolverFactory || ((pool) => new VariableResolver(pool));
     }
 
-    get isRunning(): boolean { return this._isRunning; }
+    get isRunning(): boolean { return this._state === FlowExecutionState.RUNNING; }
+    get state(): FlowExecutionState { return this._state; }
 
     async execute(
         flow: Flow,
@@ -60,9 +67,9 @@ export class FlowExecutor {
         onActionEnd?: (index: number, action: RawAction) => void,
         onActionError?: (err: ActionError) => void
     ): Promise<void> {
-        if (this._isRunning) throw new ExecutionError('Already executing');
+        if (this.isRunning) throw new ExecutionError('Already executing');
 
-        this._isRunning = true;
+        this._state = FlowExecutionState.RUNNING;
         this._abortController = new AbortController();
         const signal = this._abortController.signal;
 
@@ -72,7 +79,7 @@ export class FlowExecutor {
 
             await this._runActions(actions, signal, onActionStart, onActionEnd, onActionError);
         } finally {
-            this._isRunning = false;
+            this._state = FlowExecutionState.IDLE;
             this._timingPolicy.markFlowFinished();
             this._abortController = null;
         }
@@ -114,7 +121,7 @@ export class FlowExecutor {
                     this._timingPolicy.markInteraction();
                 }
             } catch (err) {
-                if (err instanceof Error && err.name === 'AbortError') break;
+                if (err instanceof DOMException && err.name === 'AbortError') break;
                 const actionErr: ActionError = { index: depth === 0 ? i : -1, action: raw, error: err as Error };
                 if (onActionError) {
                     onActionError(actionErr);
@@ -143,7 +150,7 @@ export class FlowExecutor {
             confidence: raw.confidence,
             timeout: raw.timeout,
         };
-        const match = await this._imageRecognizer.findImage(options);
+        const match = await this._imageRecognizer.findImage(options, signal);
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
         if (!match) return null;
         return {
@@ -153,6 +160,9 @@ export class FlowExecutor {
     }
 
     stop(): void {
+        if (this._state === FlowExecutionState.RUNNING) {
+            this._state = FlowExecutionState.STOPPING;
+        }
         this._abortController?.abort();
     }
 }

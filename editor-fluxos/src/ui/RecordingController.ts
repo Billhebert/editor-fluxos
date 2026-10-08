@@ -1,8 +1,9 @@
-import { RawAction } from '../domain/types';
+import { RawAction, IfImageAction } from '../domain/types';
 import { getActionClass, getActionLabel } from './ActionLabeler';
 import { Toast } from './Toast';
 import { VirtualKeyboardView } from './VirtualKeyboardView';
 import { normalizeKeyName } from './keyNames';
+import { ImageAssetManager } from '../infrastructure/ImageAssetManager';
 
 export interface RecordingContext {
     getTargetFluxo(): string | null;
@@ -11,6 +12,7 @@ export interface RecordingContext {
     renderAll(): void;
     registerCapture(shortcut: string): Promise<void>;
     unregisterCapture(): Promise<void>;
+    imageAssets: ImageAssetManager;
 }
 
 export class RecordingController {
@@ -20,6 +22,7 @@ export class RecordingController {
     private _isKeyRecording: boolean = false;
     private _isGlobalCapture: boolean = false;
     private _keyboardView: VirtualKeyboardView;
+    private _capturing: boolean = false;
 
     constructor(ctx: RecordingContext) {
         this._ctx = ctx;
@@ -149,15 +152,54 @@ export class RecordingController {
         if (!assetInput) return;
         const assetId = assetInput.value.trim();
         if (!assetId) return;
-        this.addToQueue({
+        const action: IfImageAction = {
             type: 'if-image',
             assetId,
             confidence: parseFloat(confidenceInput?.value || '0.8'),
             timeout: parseInt(timeoutInput?.value || '5000', 10),
             then: [],
             else: [],
-        });
+        };
+        this.addToQueue(action);
+        this._openBranchEditor(action);
         assetInput.value = '';
+    }
+
+    async captureRegion(): Promise<void> {
+        if (this._capturing) return;
+        this._capturing = true;
+        Toast.info('Selecione a regiao clicando e arrastando (em desenvolvimento).');
+        this._capturing = false;
+    }
+
+    async importImage(file: File): Promise<void> {
+        const base64 = await this._readFileAsBase64(file);
+        const assetId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await this._ctx.imageAssets.saveImageAsset(assetId, base64);
+        const input = document.getElementById('imageAssetId') as HTMLInputElement;
+        if (input) input.value = assetId;
+        Toast.success(`Imagem importada: ${assetId}`);
+    }
+
+    private _readFileAsBase64(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result as string;
+                resolve(result.replace(/^data:image\/png;base64,/, ''));
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    private _openBranchEditor(action: IfImageAction): void {
+        import('./BranchEditor').then(({ BranchEditor }) => {
+            new BranchEditor(action, {
+                onChange: () => this._renderQueue(),
+                get imageAssets() { return this._ctx.imageAssets; }
+            }).open();
+        });
     }
 
     setupKeyboardRecording(): void {

@@ -6,7 +6,7 @@ import { FlowRenderer } from '../ui/FlowRenderer';
 import { VariablePool, RawAction } from '../domain';
 
 vi.mock('../ui/Toast', () => ({
-    Toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+    Toast: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock('../ui/FlowRenderer', () => {
@@ -103,6 +103,19 @@ describe('ExecutionController', () => {
         });
 
         expect(ctx.statusSink.updateInstanceStatus).toHaveBeenCalledWith('s1', 2, 'failed');
+    });
+
+    it('executeScheduledInstance calls statusSink with cancelled on abort', async () => {
+        vi.mocked(ctx.flowExecutor.executeActions).mockRejectedValue(new DOMException('Aborted', 'AbortError'));
+
+        await ctrl.executeScheduledInstance({
+            scheduleId: 's1',
+            instanceId: 3,
+            resolvedActions: ['a'],
+            flowName: 'flow1',
+        });
+
+        expect(ctx.statusSink.updateInstanceStatus).toHaveBeenCalledWith('s1', 3, 'cancelled');
     });
 
     it('serializa execucoes agendadas concorrentes (nunca em paralelo)', async () => {

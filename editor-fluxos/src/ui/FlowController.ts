@@ -70,6 +70,11 @@ export class FlowController {
         }
     }
 
+    async editAction(flowName: string, index: number): Promise<void> {
+        // TODO: abrir editor especifico por tipo de acao
+        alert(`Editar acao ${index} do fluxo ${flowName} (em desenvolvimento)`);
+    }
+
     renderAllCallbacks() {
         return {
             onRecord: (name: string) => this._ctx.recordingOpen(name),
@@ -78,6 +83,7 @@ export class FlowController {
             onRename: (oldName: string, newName: string) => this.rename(oldName, newName),
             onRemoveAction: (flowName: string, index: number) => this.removeAction(flowName, index),
             onMoveAction: (flowName: string, from: number, to: number) => this.moveAction(flowName, from, to),
+            onEditAction: (flowName: string, index: number) => this.editAction(flowName, index),
         };
     }
 }

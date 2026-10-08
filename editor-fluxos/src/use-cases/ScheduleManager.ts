@@ -216,10 +216,11 @@ export class ScheduleManager {
             const [dFYear, dFMonth, dFDay] = dataFim.split('-').map(Number);
             const rangeStart = new Date(dIYear, dIMonth - 1, dIDay);
             const rangeEnd = new Date(dFYear, dFMonth - 1, dFDay, 23, 59, 59);
+            const allowedDays = (days && days.length > 0) ? days : [0, 1, 2, 3, 4, 5, 6];
 
             const current = new Date(rangeStart);
             while (current <= rangeEnd) {
-                if (!days || days.length === 0 || days.includes(current.getDay())) {
+                if (allowedDays.includes(current.getDay())) {
                     dayStarts.push(new Date(current.getFullYear(), current.getMonth(), current.getDate(), 0, 0, 0).getTime());
                 }
                 current.setDate(current.getDate() + 1);
